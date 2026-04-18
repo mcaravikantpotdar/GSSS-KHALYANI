@@ -40,7 +40,6 @@ const DOM = {
 };
 
 async function init() {
-    console.log("System Starting...");
     checkAdminStatus();
     setupEventListeners();
     await fetchSchoolDetails();
@@ -65,35 +64,20 @@ async function githubRequest(path, method = 'GET', body = null) {
 async function fetchSchoolDetails() {
     try {
         const res = await fetch(`${CONFIG.dataPath}school_details.json?t=${Date.now()}`);
-        if (!res.ok) throw new Error("Failed to load school details.");
         state.schoolDetails = await res.json();
         renderHero();
         renderSidebar();
-    } catch (error) {
-        console.error(error);
-        DOM.name.innerText = "Error loading school profile.";
-    }
+    } catch (e) { console.error(e); }
 }
 
 async function fetchFeedData() {
     try {
         const res = await fetch(`${CONFIG.dataPath}${CONFIG.currentYear}.json?t=${Date.now()}`);
-        if (!res.ok) throw new Error("Failed to load feed.");
         let data = await res.json();
-        
-        if (!state.isAdmin) data = data.filter(post => post.status === "published");
-        
-        state.feedData = data.sort((a, b) => {
-            if (a.is_pinned && !b.is_pinned) return -1;
-            if (!a.is_pinned && b.is_pinned) return 1;
-            return b.timestamp - a.timestamp;
-        });
-        
+        if (!state.isAdmin) data = data.filter(p => p.status === "published");
+        state.feedData = data.sort((a, b) => (b.is_pinned - a.is_pinned) || (b.timestamp - a.timestamp));
         renderFeed();
-    } catch (error) {
-        console.error(error);
-        DOM.feedContainer.innerHTML = `<div class="loader">Unable to load feed data.</div>`;
-    }
+    } catch (e) { console.error(e); }
 }
 
 function renderHero() {
@@ -110,7 +94,7 @@ function renderHero() {
 function renderSidebar() {
     if (!state.schoolDetails || !state.schoolDetails.categories) return;
     DOM.linksList.innerHTML = state.schoolDetails.categories.map(cat => 
-        `<li><a href="#" onclick="alert('Category filter coming soon!')">${cat}</a></li>`
+        `<li><a href="#" onclick="alert('Filter for ${cat} coming soon')">${cat}</a></li>`
     ).join('');
 }
 
@@ -131,22 +115,20 @@ function renderFeed() {
         if (post.is_pinned) html += `<span class="pin-badge">📌 Pinned</span>`;
         if (state.isAdmin && post.status === "draft") html += `<span class="pin-badge" style="background: #dc2626; right: 80px;">DRAFT</span>`;
         
-        // Tags and Date
         html += `<div class="post-header">`;
-        if (post.categories && post.categories.length > 0) {
+        if (post.categories) {
             html += `<div class="tags-container">` + post.categories.map(c => `<span class="category-tag">#${c}</span>`).join('') + `</div>`;
         }
         html += `<span class="post-date">• ${dateStr}</span></div>`;
 
-        // Unified Text Content
+        // CHANGED: Using a div and innerHTML to allow tables, links, and lists
         html += `<h2 class="post-title-en">${post.title}</h2>
-                 <div class="post-content"><p>${post.content.replace(/\n/g, '<br>')}</p></div>`;
+                 <div class="post-content">${post.content}</div>`;
 
-        // Image Slider
         if (post.media && post.media.length > 0) {
             html += `<div class="post-media">`;
             post.media.forEach((img, idx) => {
-                html += `<img src="${img}" class="slider-img ${idx === 0 ? 'active' : ''}" alt="Attachment ${idx+1}">`;
+                html += `<img src="${img}" class="slider-img ${idx === 0 ? 'active' : ''}">`;
             });
             if (post.media.length > 1) {
                 html += `
@@ -159,7 +141,7 @@ function renderFeed() {
         }
 
         if (state.isAdmin) {
-            html += `<div class="admin-actions"><button class="btn-secondary btn-small" onclick="alert('Edit logic coming soon!')">✏️ Edit</button></div>`;
+            html += `<div class="admin-actions"><button class="btn-secondary btn-small">✏️ Edit</button></div>`;
         }
 
         postEl.innerHTML = html;
@@ -167,18 +149,15 @@ function renderFeed() {
     });
 }
 
-// Global function for the slider buttons
 window.changeSlide = function(btn, dir) {
     const container = btn.closest('.post-media');
-    const images = container.querySelectorAll('.slider-img');
-    const counter = container.querySelector('.slider-counter');
-    let activeIdx = Array.from(images).findIndex(img => img.classList.contains('active'));
-    
-    images[activeIdx].classList.remove('active');
-    let newIdx = (activeIdx + dir + images.length) % images.length;
-    images[newIdx].classList.add('active');
-    
-    if (counter) counter.innerText = `${newIdx + 1} / ${images.length}`;
+    const imgs = container.querySelectorAll('.slider-img');
+    const count = container.querySelector('.slider-counter');
+    let idx = Array.from(imgs).findIndex(img => img.classList.contains('active'));
+    imgs[idx].classList.remove('active');
+    let newIdx = (idx + dir + imgs.length) % imgs.length;
+    imgs[newIdx].classList.add('active');
+    if (count) count.innerText = `${newIdx + 1} / ${imgs.length}`;
 };
 
 function renderAdminUI() {
@@ -191,10 +170,8 @@ function renderAdminUI() {
     newBtn.onclick = () => DOM.editorModal.style.display = "flex";
     DOM.feedContainer.prepend(newBtn);
 
-    // Render Checkboxes
     if (state.schoolDetails && state.schoolDetails.categories) {
-        const catContainer = document.getElementById('edit-category-container');
-        catContainer.innerHTML = state.schoolDetails.categories.map(c => 
+        document.getElementById('edit-category-container').innerHTML = state.schoolDetails.categories.map(c => 
             `<label><input type="checkbox" class="cat-checkbox" value="${c}"> ${c}</label>`
         ).join('');
     }
@@ -222,28 +199,22 @@ async function processImage(file) {
 
 async function handlePostSave(e) {
     e.preventDefault();
-    if (!state.pat) return alert("Please login first");
-
     const btn = document.getElementById('btn-editor-save');
-    btn.innerText = "Saving to GitHub...";
+    btn.innerText = "Saving...";
     btn.disabled = true;
 
     try {
         const timestamp = Date.now();
         const postID = `post_${timestamp}`;
         const mediaPaths = [];
-
-        // 1. Handle Multiple Image Uploads
         const fileInput = document.getElementById('edit-media');
+
         if (fileInput.files.length > 0) {
             for (let i = 0; i < fileInput.files.length; i++) {
-                btn.innerText = `Uploading Image ${i+1}/${fileInput.files.length}...`;
                 const base64 = await processImage(fileInput.files[i]);
-                const padIndex = String(i+1).padStart(2, '0');
-                const fileName = `${CONFIG.currentYear}_${postID}_pic_${padIndex}.jpg`;
-                
+                const fileName = `${CONFIG.currentYear}_${postID}_pic_${String(i+1).padStart(2, '0')}.jpg`;
                 await githubRequest(`${CONFIG.mediaPath}${fileName}`, 'PUT', {
-                    message: `Upload image ${i+1} for ${postID}`,
+                    message: `Upload image ${i+1}`,
                     content: base64,
                     branch: CONFIG.githubBranch
                 });
@@ -251,17 +222,12 @@ async function handlePostSave(e) {
             }
         }
 
-        btn.innerText = "Updating Feed...";
-
-        // 2. Read existing feed
         const filePath = `${CONFIG.dataPath}${CONFIG.currentYear}.json`;
         let fileData;
         try { fileData = await githubRequest(filePath); } 
         catch (err) { fileData = { content: btoa("[]"), sha: null }; }
         
         const currentContent = JSON.parse(decodeURIComponent(escape(window.atob(fileData.content))));
-
-        // 3. Build Unified Post Object
         const selectedCats = Array.from(document.querySelectorAll('.cat-checkbox:checked')).map(cb => cb.value);
         
         const newPost = {
@@ -275,23 +241,19 @@ async function handlePostSave(e) {
             media: mediaPaths
         };
 
-        // 4. Save
         currentContent.unshift(newPost);
         const payload = {
-            message: `Add new post: ${newPost.title}`,
+            message: `Add post: ${newPost.title}`,
             content: window.btoa(unescape(encodeURIComponent(JSON.stringify(currentContent, null, 2)))),
             branch: CONFIG.githubBranch
         };
         if (fileData.sha) payload.sha = fileData.sha;
 
         await githubRequest(filePath, 'PUT', payload);
-
-        alert("Post saved successfully!");
+        alert("Success!");
         window.location.reload();
-        
     } catch (err) {
-        console.error(err);
-        alert("Error saving: " + err.message);
+        alert("Error: " + err.message);
     } finally {
         btn.innerText = "Save & Publish";
         btn.disabled = false;
@@ -302,44 +264,18 @@ function checkAdminStatus() {
     if (state.pat) {
         state.isAdmin = true;
         DOM.adminBtn.innerText = "Logout Admin";
-        DOM.adminBtn.style.color = "var(--accent-color)";
-    } else {
-        state.isAdmin = false;
-        DOM.adminBtn.innerText = "Admin Login";
     }
 }
 
 function setupEventListeners() {
-    DOM.adminBtn.addEventListener('click', () => {
-        if (state.isAdmin) {
-            sessionStorage.removeItem('github_pat');
-            window.location.reload();
-        } else {
-            DOM.authModal.style.display = 'flex';
-        }
-    });
-
-    DOM.authCancel.addEventListener('click', () => {
-        DOM.authModal.style.display = 'none';
-        DOM.authError.style.display = 'none';
-    });
-
-    DOM.authSubmit.addEventListener('click', () => {
-        const token = DOM.authInput.value.trim();
-        if (token.startsWith("ghp_") || token.startsWith("github_pat_")) {
-            sessionStorage.setItem('github_pat', token);
-            window.location.reload(); 
-        } else {
-            DOM.authError.innerText = "Invalid token format. Must start with ghp_ or github_pat_";
-            DOM.authError.style.display = 'block';
-        }
-    });
-
-    DOM.editorCancel.addEventListener('click', () => {
-        DOM.editorModal.style.display = 'none';
-    });
-
-    DOM.editorForm.addEventListener('submit', handlePostSave);
+    DOM.adminBtn.onclick = () => state.isAdmin ? (sessionStorage.removeItem('github_pat'), location.reload()) : (DOM.authModal.style.display = 'flex');
+    DOM.authCancel.onclick = () => DOM.authModal.style.display = 'none';
+    DOM.authSubmit.onclick = () => {
+        const t = DOM.authInput.value.trim();
+        if (t.startsWith("ghp_") || t.startsWith("github_pat_")) { sessionStorage.setItem('github_pat', t); location.reload(); }
+    };
+    DOM.editorCancel.onclick = () => DOM.editorModal.style.display = 'none';
+    DOM.editorForm.onsubmit = handlePostSave;
 }
 
 init();
