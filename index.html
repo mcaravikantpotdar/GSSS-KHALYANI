@@ -22,9 +22,7 @@
 
     <div id="urgent-ticker-container" class="ticker-wrapper" style="display: none;">
         <div class="ticker-label">URGENT</div>
-        <div class="ticker-content">
-            <marquee id="ticker-text"></marquee>
-        </div>
+        <div class="ticker-content"><marquee id="ticker-text"></marquee></div>
     </div>
 
     <nav id="main-nav" class="navigation-bar">
@@ -33,24 +31,17 @@
             <button class="nav-btn" id="tab-people">Our Team</button>
         </div>
         <div class="search-container">
-            <input type="text" id="search-input" placeholder="Search posts, events, notices...">
+            <input type="text" id="search-input" placeholder="Search posts...">
         </div>
     </nav>
 
     <main id="content-layout" class="layout-grid">
         <section id="feed-column" class="feed-container">
-            <div id="feed-loader" class="loader">Loading latest updates...</div>
+            <div id="feed-loader" class="loader">Loading updates...</div>
         </section>
-
         <aside id="sidebar-column" class="sidebar-container">
-            <div class="sidebar-widget" id="widget-quick-links">
-                <h3>Quick Links</h3>
-                <ul id="quick-links-list"></ul>
-            </div>
-            <div class="sidebar-widget" id="widget-archives">
-                <h3>Archives</h3>
-                <ul id="archive-years-list"></ul>
-            </div>
+            <div class="sidebar-widget"><h3>Quick Links</h3><ul id="quick-links-list"></ul></div>
+            <div class="sidebar-widget"><h3>Archives</h3><ul id="archive-years-list"></ul></div>
         </aside>
     </main>
 
@@ -58,13 +49,7 @@
         <div class="footer-grid">
             <div class="footer-col" id="footer-contact">
                 <h4>Contact Us</h4>
-                <p id="contact-address"></p>
-                <p id="contact-phone"></p>
-                <p id="contact-email"></p>
-            </div>
-            <div class="footer-col" id="footer-social">
-                <h4>Connect</h4>
-                <div id="social-links-container"></div>
+                <p id="contact-address"></p><p id="contact-phone"></p><p id="contact-email"></p>
             </div>
             <div class="footer-col admin-access">
                 <button id="btn-admin-login" class="admin-link">Admin Login</button>
@@ -74,12 +59,11 @@
 
     <div id="modal-auth" class="modal-overlay" style="display: none;">
         <div class="modal-content auth-box">
-            <h2>Admin Authentication</h2>
-            <p>Please enter your GitHub Personal Access Token (PAT) to continue.</p>
-            <input type="password" id="input-pat" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+            <h2>Admin Login</h2>
+            <input type="password" id="input-pat" placeholder="GitHub PAT (ghp_...)">
             <div class="modal-actions">
                 <button id="btn-auth-cancel" class="btn-secondary">Cancel</button>
-                <button id="btn-auth-submit" class="btn-primary">Authenticate</button>
+                <button id="btn-auth-submit" class="btn-primary">Login</button>
             </div>
             <p id="auth-error-msg" class="error-text" style="display: none;"></p>
         </div>
@@ -87,39 +71,35 @@
 
     <div id="modal-editor" class="modal-overlay" style="display: none;">
         <div class="modal-content editor-box">
-            <h2 id="editor-title">Create New Post</h2>
-            
+            <h2>Post Editor</h2>
             <form id="post-editor-form">
-                <input type="hidden" id="edit-post-id">
-                
                 <div class="form-group">
-                    <label>Categories (Select one or more)</label>
-                    <div id="edit-category-container" class="checkbox-grid">
-                        </div>
+                    <label>Categories</label>
+                    <div id="edit-category-container" class="checkbox-grid"></div>
                 </div>
-
                 <div class="form-group status-group">
-                    <label>Status:</label>
                     <label><input type="radio" name="edit-status" value="published" checked> Published</label>
                     <label><input type="radio" name="edit-status" value="draft"> Draft</label>
-                    <label class="pin-toggle"><input type="checkbox" id="edit-pinned"> Pin to Top</label>
+                    <label><input type="checkbox" id="edit-pinned"> Pin to Top</label>
                 </div>
-
                 <div class="form-group">
-                    <label for="edit-title">Post Title</label>
-                    <input type="text" id="edit-title" required placeholder="Type title in English, Hindi, or both...">
+                    <label>Title</label>
+                    <input type="text" id="edit-title" required>
                 </div>
-
                 <div class="form-group">
-                    <label for="edit-content">Post Content</label>
-                    <textarea id="edit-content" rows="6" required placeholder="Type content here..."></textarea>
+                    <label>Content</label>
+                    <div class="editor-toolbar">
+                        <button type="button" onclick="insertHTML('link')">🔗 Link</button>
+                        <button type="button" onclick="insertHTML('list')">📝 List</button>
+                        <button type="button" onclick="insertHTML('table')">📊 Table</button>
+                        <button type="button" onclick="insertHTML('bold')"><b>B</b></button>
+                    </div>
+                    <textarea id="edit-content" rows="8" required></textarea>
                 </div>
-
                 <div class="form-group">
-                    <label for="edit-media">Attach Images (Max 15MB each, Auto-compresses)</label>
+                    <label>Images</label>
                     <input type="file" id="edit-media" accept="image/jpeg, image/png" multiple>
                 </div>
-
                 <div class="modal-actions">
                     <button type="button" id="btn-editor-cancel" class="btn-secondary">Cancel</button>
                     <button type="submit" id="btn-editor-save" class="btn-primary">Save & Publish</button>
