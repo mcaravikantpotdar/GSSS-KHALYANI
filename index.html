@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Feed Loading...</title>
+    <link rel="stylesheet" href="style.css">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+</head>
+<body>
+
+    <header id="hero-section" class="hero-container">
+        <div class="hero-content">
+            <img id="school-logo" src="" alt="School Logo" class="logo" style="display: none;">
+            <div class="identity-text">
+                <h1 id="school-name">Loading...</h1>
+                <p id="udise-code" class="udise"></p>
+                <p id="mission-statement" class="mission"></p>
+            </div>
+        </div>
+    </header>
+
+    <div id="urgent-ticker-container" class="ticker-wrapper" style="display: none;">
+        <div class="ticker-label">URGENT</div>
+        <div class="ticker-content">
+            <marquee id="ticker-text"></marquee>
+        </div>
+    </div>
+
+    <nav id="main-nav" class="navigation-bar">
+        <div class="nav-tabs">
+            <button class="nav-btn active" id="tab-feed">Latest Feed</button>
+            <button class="nav-btn" id="tab-people">Our Team</button>
+        </div>
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search posts, events, notices...">
+        </div>
+    </nav>
+
+    <main id="content-layout" class="layout-grid">
+        
+        <section id="feed-column" class="feed-container">
+            <div id="feed-loader" class="loader">Loading latest updates...</div>
+        </section>
+
+        <aside id="sidebar-column" class="sidebar-container">
+            
+            <div class="sidebar-widget" id="widget-quick-links">
+                <h3>Quick Links</h3>
+                <ul id="quick-links-list">
+                    </ul>
+            </div>
+
+            <div class="sidebar-widget" id="widget-archives">
+                <h3>Archives</h3>
+                <ul id="archive-years-list">
+                    </ul>
+            </div>
+        </aside>
+    </main>
+
+    <footer id="global-footer" class="footer-container">
+        <div class="footer-grid">
+            <div class="footer-col" id="footer-contact">
+                <h4>Contact Us</h4>
+                <p id="contact-address"></p>
+                <p id="contact-phone"></p>
+                <p id="contact-email"></p>
+            </div>
+            <div class="footer-col" id="footer-social">
+                <h4>Connect</h4>
+                <div id="social-links-container"></div>
+            </div>
+            <div class="footer-col admin-access">
+                <button id="btn-admin-login" class="admin-link">Admin Login</button>
+            </div>
+        </div>
+    </footer>
+
+    <div id="modal-auth" class="modal-overlay" style="display: none;">
+        <div class="modal-content auth-box">
+            <h2>Admin Authentication</h2>
+            <p>Please enter your GitHub Personal Access Token (PAT) to continue.</p>
+            <input type="password" id="input-pat" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+            <div class="modal-actions">
+                <button id="btn-auth-cancel" class="btn-secondary">Cancel</button>
+                <button id="btn-auth-submit" class="btn-primary">Authenticate</button>
+            </div>
+            <p id="auth-error-msg" class="error-text" style="display: none;"></p>
+        </div>
+    </div>
+
+    <div id="modal-editor" class="modal-overlay" style="display: none;">
+        <div class="modal-content editor-box">
+            <h2 id="editor-title">Create New Post</h2>
+            
+            <form id="post-editor-form">
+                <input type="hidden" id="edit-post-id">
+                
+                <div class="form-group">
+                    <label for="edit-category">Category</label>
+                    <select id="edit-category" required></select>
+                </div>
+
+                <div class="form-group status-group">
+                    <label>Status:</label>
+                    <label><input type="radio" name="edit-status" value="published" checked> Published</label>
+                    <label><input type="radio" name="edit-status" value="draft"> Draft</label>
+                    <label class="pin-toggle"><input type="checkbox" id="edit-pinned"> Pin to Top</label>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-title-en">Title (English)</label>
+                    <input type="text" id="edit-title-en" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-content-en">Content (English)</label>
+                    <textarea id="edit-content-en" rows="4" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-title-hi">Title (Hindi) - Optional</label>
+                    <input type="text" id="edit-title-hi">
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-content-hi">Content (Hindi) - Optional</label>
+                    <textarea id="edit-content-hi" rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-media">Attach Image (Max 15MB, Auto-compresses to 720px)</label>
+                    <input type="file" id="edit-media" accept="image/jpeg, image/png">
+                    <div id="media-preview-container"></div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" id="btn-editor-cancel" class="btn-secondary">Cancel</button>
+                    <button type="submit" id="btn-editor-save" class="btn-primary">Save & Publish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
