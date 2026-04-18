@@ -3,8 +3,8 @@
    ========================================================================== */
 const CONFIG = {
     // 1. Your GitHub Repository Details
-    githubOwner: "YOUR_GITHUB_USERNAME", // e.g., "schooladmin"
-    githubRepo: "YOUR_REPO_NAME",        // e.g., "gsss-kullu-website"
+    githubOwner: "mcaravikantpotdar", // e.g., "schooladmin"
+    githubRepo: "GSSS-KHALYANI",        // e.g., "gsss-kullu-website"
     githubBranch: "main",                // Usually "main" or "master"
     
     // 2. Current Academic Year (Matches your JSON file name in /data/)
