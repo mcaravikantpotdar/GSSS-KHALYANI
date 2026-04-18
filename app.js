@@ -10,6 +10,32 @@ const CONFIG = {
     mediaPath: "media/"
 };
 
+// --- GLOBAL HTML INSERTER (Moved here to ensure buttons work) ---
+window.insertHTML = function(type) {
+    const area = document.getElementById('edit-content');
+    if (!area) return;
+    
+    const tags = {
+        'link': '<a href="https://LINK_HERE" target="_blank">TEXT_HERE</a>',
+        'list': '<ul>\n  <li>Item 1</li>\n  <li>Item 2</li>\n</ul>',
+        'table': '<table border="1">\n  <tr><th>Head 1</th><th>Head 2</th></tr>\n  <tr><td>Data 1</td><td>Data 2</td></tr>\n</table>',
+        'bold': '<b>BOLD_TEXT</b>'
+    };
+    
+    const start = area.selectionStart;
+    const end = area.selectionEnd;
+    const text = area.value;
+    
+    area.value = text.substring(0, start) + tags[type] + text.substring(end);
+    area.focus();
+    // Move cursor inside the tag for convenience
+    area.setSelectionRange(start + tags[type].length, start + tags[type].length);
+};
+
+/* ==========================================================================
+   APPLICATION LOGIC
+   ========================================================================== */
+
 let state = {
     schoolDetails: null,
     feedData: [],
@@ -28,6 +54,7 @@ const DOM = {
     authInput: document.getElementById('input-pat'),
     authSubmit: document.getElementById('btn-auth-submit'),
     authCancel: document.getElementById('btn-auth-cancel'),
+    authError: document.getElementById('auth-error-msg'),
     editorModal: document.getElementById('modal-editor'),
     editorForm: document.getElementById('post-editor-form'),
     editorCancel: document.getElementById('btn-editor-cancel'),
@@ -80,23 +107,25 @@ function renderHero() {
 }
 
 function renderSidebar() {
-    if (!state.schoolDetails) return;
-    DOM.linksList.innerHTML = state.schoolDetails.categories.map(c => `<li><a href="#">${c}</a></li>`).join('');
+    if (!state.schoolDetails || !state.schoolDetails.categories) return;
+    DOM.linksList.innerHTML = state.schoolDetails.categories.map(cat => 
+        `<li><a href="#">${cat}</a></li>`
+    ).join('');
 }
 
 function renderFeed() {
-    DOM.feedContainer.innerHTML = state.feedData.length ? "" : `<div class="loader">No posts found.</div>`;
+    DOM.feedContainer.innerHTML = state.feedData.length ? "" : `<div class="loader">No posts available yet.</div>`;
     state.feedData.forEach(post => {
         const card = document.createElement('article');
         card.className = `post-card ${post.is_pinned ? 'pinned' : ''}`;
         
         let html = `
-            ${post.is_pinned ? '<span class="pin-badge">Pinned</span>' : ''}
+            ${post.is_pinned ? '<span class="pin-badge">📌 Pinned</span>' : ''}
             <div class="post-header">
                 <div class="tags-container">${post.categories.map(c => `<span class="category-tag">#${c}</span>`).join('')}</div>
-                <span class="post-date">${new Date(post.timestamp).toLocaleDateString('en-IN')}</span>
+                <span class="post-date">• ${new Date(post.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
             </div>
-            <h2>${post.title}</h2>
+            <h2 class="post-title-en">${post.title}</h2>
             <div class="post-content">${post.content}</div>
         `;
 
@@ -104,11 +133,15 @@ function renderFeed() {
             html += `<div class="post-media">`;
             post.media.forEach((m, idx) => html += `<img src="${m}" class="slider-img ${idx === 0 ? 'active' : ''}">`);
             if (post.media.length > 1) {
-                html += `<button class="slider-btn" style="left:0" onclick="changeSlide(this,-1)">&#10094;</button>
-                         <button class="slider-btn" style="right:0" onclick="changeSlide(this,1)">&#10095;</button>
+                html += `<button class="slider-btn prev" onclick="changeSlide(this,-1)">&#10094;</button>
+                         <button class="slider-btn next" onclick="changeSlide(this,1)">&#10095;</button>
                          <div class="slider-counter">1 / ${post.media.length}</div>`;
             }
             html += `</div>`;
+        }
+
+        if (state.isAdmin) {
+            html += `<div class="admin-actions"><button class="btn-secondary btn-small" onclick="alert('Edit logic coming soon!')">✏️ Edit</button></div>`;
         }
         card.innerHTML = html;
         DOM.feedContainer.appendChild(card);
@@ -129,30 +162,16 @@ window.changeSlide = function(btn, dir) {
 function renderAdminUI() {
     if (!state.isAdmin) return;
     const btn = document.createElement('button');
-    btn.className = "btn-primary"; btn.style.display = "block"; btn.style.margin = "0 auto 1.5rem";
+    btn.className = "btn-primary"; btn.style.display = "block"; btn.style.margin = "0 auto 2rem auto";
     btn.innerText = "+ Create New Post"; btn.onclick = () => DOM.editorModal.style.display = "flex";
     DOM.feedContainer.prepend(btn);
 
-    document.getElementById('edit-category-container').innerHTML = state.schoolDetails.categories.map(c => 
-        `<label><input type="checkbox" class="cat-checkbox" value="${c}"> ${c}</label>`
-    ).join('');
+    if (state.schoolDetails && state.schoolDetails.categories) {
+        document.getElementById('edit-category-container').innerHTML = state.schoolDetails.categories.map(c => 
+            `<label><input type="checkbox" class="cat-checkbox" value="${c}"> ${c}</label>`
+        ).join('');
+    }
 }
-
-// NEW: HTML Tag Inserter
-window.insertHTML = function(type) {
-    const area = document.getElementById('edit-content');
-    const tags = {
-        'link': '<a href="https://LINK_HERE" target="_blank">TEXT_HERE</a>',
-        'list': '<ul>\n  <li>Item 1</li>\n  <li>Item 2</li>\n</ul>',
-        'table': '<table border="1">\n  <tr><th>Head 1</th><th>Head 2</th></tr>\n  <tr><td>Data 1</td><td>Data 2</td></tr>\n</table>',
-        'bold': '<b>BOLD_TEXT</b>'
-    };
-    const start = area.selectionStart;
-    const end = area.selectionEnd;
-    const text = area.value;
-    area.value = text.substring(0, start) + tags[type] + text.substring(end);
-    area.focus();
-};
 
 async function processImage(file) {
     return new Promise(res => {
@@ -175,7 +194,7 @@ async function processImage(file) {
 async function handlePostSave(e) {
     e.preventDefault();
     const saveBtn = document.getElementById('btn-editor-save');
-    saveBtn.innerText = "Saving..."; saveBtn.disabled = true;
+    saveBtn.innerText = "Saving to GitHub..."; saveBtn.disabled = true;
 
     try {
         const ts = Date.now();
@@ -184,9 +203,10 @@ async function handlePostSave(e) {
         const files = document.getElementById('edit-media').files;
 
         for (let i = 0; i < files.length; i++) {
+            saveBtn.innerText = `Uploading Image ${i+1}/${files.length}...`;
             const b64 = await processImage(files[i]);
             const fname = `${CONFIG.currentYear}_${pid}_pic_${String(i+1).padStart(2,'0')}.jpg`;
-            await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: `Img ${i+1}`, content: b64 });
+            await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: `Upload image ${i+1}`, content: b64 });
             media.push(`${CONFIG.mediaPath}${fname}`);
         }
 
@@ -206,20 +226,30 @@ async function handlePostSave(e) {
 
         content.unshift(post);
         await githubRequest(fPath, 'PUT', {
-            message: `Add: ${post.title}`,
+            message: `Add new post: ${post.title}`,
             content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))),
             sha: fData.sha
         });
+        alert("Post saved successfully!");
         location.reload();
-    } catch (err) { alert(err.message); saveBtn.disabled = false; saveBtn.innerText = "Save"; }
+    } catch (err) { alert("Error saving: " + err.message); saveBtn.disabled = false; saveBtn.innerText = "Save & Publish"; }
 }
 
-function checkAdminStatus() { if (state.pat) { state.isAdmin = true; DOM.adminBtn.innerText = "Logout Admin"; } }
+function checkAdminStatus() { 
+    if (state.pat) { 
+        state.isAdmin = true; 
+        DOM.adminBtn.innerText = "Logout Admin"; 
+        DOM.adminBtn.style.color = "var(--accent-color)";
+    } 
+}
 
 function setupEventListeners() {
     DOM.adminBtn.onclick = () => state.isAdmin ? (sessionStorage.removeItem('github_pat'), location.reload()) : (DOM.authModal.style.display='flex');
     DOM.authCancel.onclick = () => DOM.authModal.style.display='none';
-    DOM.authSubmit.onclick = () => { const t = DOM.authInput.value.trim(); if(t.startsWith('ghp_')){ sessionStorage.setItem('github_pat', t); location.reload(); } };
+    DOM.authSubmit.onclick = () => { 
+        const t = DOM.authInput.value.trim(); 
+        if(t.startsWith('ghp_') || t.startsWith('github_pat_')){ sessionStorage.setItem('github_pat', t); location.reload(); } 
+    };
     DOM.editorCancel.onclick = () => DOM.editorModal.style.display='none';
     DOM.editorForm.onsubmit = handlePostSave;
 }
