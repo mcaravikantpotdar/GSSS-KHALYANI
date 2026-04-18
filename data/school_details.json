@@ -1,0 +1,23 @@
+{
+  "school_name": "Government Senior Secondary School",
+  "udise_code": "02040000000",
+  "mission_statement": "Empowering students through knowledge, discipline, and community.",
+  "logo_path": "assets/images/logo.png",
+  "contact": {
+    "address": "Village & Post Office, District, State, PIN",
+    "phone": "+91-0000000000",
+    "email": "principal@schooldomain.in",
+    "map_embed_url": ""
+  },
+  "categories": [
+    "Academic",
+    "Sports",
+    "Cultural",
+    "News",
+    "Notice"
+  ],
+  "social_links": {
+    "facebook": "",
+    "youtube": ""
+  }
+}
