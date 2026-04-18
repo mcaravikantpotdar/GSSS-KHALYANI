@@ -38,23 +38,18 @@
     </nav>
 
     <main id="content-layout" class="layout-grid">
-        
         <section id="feed-column" class="feed-container">
             <div id="feed-loader" class="loader">Loading latest updates...</div>
         </section>
 
         <aside id="sidebar-column" class="sidebar-container">
-            
             <div class="sidebar-widget" id="widget-quick-links">
                 <h3>Quick Links</h3>
-                <ul id="quick-links-list">
-                    </ul>
+                <ul id="quick-links-list"></ul>
             </div>
-
             <div class="sidebar-widget" id="widget-archives">
                 <h3>Archives</h3>
-                <ul id="archive-years-list">
-                    </ul>
+                <ul id="archive-years-list"></ul>
             </div>
         </aside>
     </main>
@@ -98,8 +93,9 @@
                 <input type="hidden" id="edit-post-id">
                 
                 <div class="form-group">
-                    <label for="edit-category">Category</label>
-                    <select id="edit-category" required></select>
+                    <label>Categories (Select one or more)</label>
+                    <div id="edit-category-container" class="checkbox-grid">
+                        </div>
                 </div>
 
                 <div class="form-group status-group">
@@ -110,29 +106,18 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="edit-title-en">Title (English)</label>
-                    <input type="text" id="edit-title-en" required>
+                    <label for="edit-title">Post Title</label>
+                    <input type="text" id="edit-title" required placeholder="Type title in English, Hindi, or both...">
                 </div>
 
                 <div class="form-group">
-                    <label for="edit-content-en">Content (English)</label>
-                    <textarea id="edit-content-en" rows="4" required></textarea>
+                    <label for="edit-content">Post Content</label>
+                    <textarea id="edit-content" rows="6" required placeholder="Type content here..."></textarea>
                 </div>
 
                 <div class="form-group">
-                    <label for="edit-title-hi">Title (Hindi) - Optional</label>
-                    <input type="text" id="edit-title-hi">
-                </div>
-
-                <div class="form-group">
-                    <label for="edit-content-hi">Content (Hindi) - Optional</label>
-                    <textarea id="edit-content-hi" rows="4"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="edit-media">Attach Image (Max 15MB, Auto-compresses to 720px)</label>
-                    <input type="file" id="edit-media" accept="image/jpeg, image/png">
-                    <div id="media-preview-container"></div>
+                    <label for="edit-media">Attach Images (Max 15MB each, Auto-compresses)</label>
+                    <input type="file" id="edit-media" accept="image/jpeg, image/png" multiple>
                 </div>
 
                 <div class="modal-actions">
