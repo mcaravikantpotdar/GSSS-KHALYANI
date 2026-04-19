@@ -126,7 +126,6 @@ function renderFeed() {
             html += `</div>`;
         }
 
-        // NEW: Actionable Edit and Delete Buttons
         if (state.isAdmin) {
             html += `
                 <div class="admin-actions">
@@ -158,7 +157,7 @@ function renderAdminUI() {
     btn.innerText = "+ Create New Post"; 
     btn.onclick = () => {
         DOM.editorForm.reset();
-        document.getElementById('edit-post-id').value = ""; // Clear ID for new post
+        document.getElementById('edit-post-id').value = ""; 
         document.getElementById('edit-content').innerHTML = ""; 
         document.getElementById('editor-title').innerText = "Create New Post";
         DOM.editorModal.style.display = "flex";
@@ -172,7 +171,6 @@ function renderAdminUI() {
     }
 }
 
-// NEW: Edit Post Logic
 window.editPost = function(postID) {
     const post = state.feedData.find(p => p.id === postID);
     if (!post) return;
@@ -183,11 +181,9 @@ window.editPost = function(postID) {
     document.getElementById('edit-title').value = post.title || post.title_en || "";
     document.getElementById('edit-content').innerHTML = post.content || post.content_en || "";
     
-    // Set Status & Pin
     document.querySelector(`input[name="edit-status"][value="${post.status || 'published'}"]`).checked = true;
     document.getElementById('edit-pinned').checked = post.is_pinned || false;
 
-    // Set Categories
     const checkboxes = document.querySelectorAll('.cat-checkbox');
     checkboxes.forEach(cb => {
         cb.checked = post.categories && post.categories.includes(cb.value);
@@ -196,16 +192,17 @@ window.editPost = function(postID) {
     DOM.editorModal.style.display = "flex";
 };
 
-// NEW: Delete Post Logic
 window.deletePost = async function(postID) {
     if (!confirm("Are you sure you want to permanently delete this post?")) return;
 
     try {
+        const postElement = document.querySelector(`[onclick*="${postID}"]`).closest('.post-card');
+        if (postElement) postElement.style.opacity = '0.3';
+
         const fPath = `${CONFIG.dataPath}${CONFIG.currentYear}.json`;
         const fData = await githubRequest(fPath);
         let content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
 
-        // Filter out the deleted post
         const newContent = content.filter(p => p.id !== postID);
 
         await githubRequest(fPath, 'PUT', {
@@ -214,10 +211,13 @@ window.deletePost = async function(postID) {
             sha: fData.sha
         });
         
-        alert("Post deleted successfully.");
-        location.reload();
+        state.feedData = state.feedData.filter(p => p.id !== postID);
+        if (postElement) postElement.remove();
+
+        alert("Post deleted successfully from the database. It may take a minute for the public website to update.");
     } catch (err) {
         alert("Error deleting post: " + err.message);
+        location.reload(); 
     }
 };
 
@@ -242,17 +242,30 @@ async function processImage(file) {
 async function handlePostSave(e) {
     e.preventDefault();
     const saveBtn = document.getElementById('btn-editor-save');
-    saveBtn.innerText = "Saving to GitHub..."; saveBtn.disabled = true;
+    saveBtn.innerText = "Writing to Repository..."; saveBtn.disabled = true;
 
     try {
         const editPostID = document.getElementById('edit-post-id').value;
         const isEditing = !!editPostID;
         const pid = isEditing ? editPostID : `post_${Date.now()}`;
         
+        const fPath = `${CONFIG.dataPath}${CONFIG.currentYear}.json`;
+        let fData; try { fData = await githubRequest(fPath); } catch { fData = { content: btoa("[]"), sha: null }; }
+        const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
+
+        // EXISTENCE CHECK FOR GHOST EDITS
+        if (isEditing) {
+            const index = content.findIndex(p => p.id === pid);
+            if (index === -1) {
+                alert("Cannot save changes. This post appears to have been deleted or moved. The page will now refresh to show the current state.");
+                location.reload();
+                return;
+            }
+        }
+
         const files = document.getElementById('edit-media').files;
         let newMediaPaths = [];
 
-        // Upload new files if any are selected
         if (files.length > 0) {
             for (let i = 0; i < files.length; i++) {
                 saveBtn.innerText = `Uploading Image ${i+1}/${files.length}...`;
@@ -261,13 +274,9 @@ async function handlePostSave(e) {
                 await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: `Img ${i+1}`, content: b64 });
                 newMediaPaths.push(`${CONFIG.mediaPath}${fname}`);
             }
+            saveBtn.innerText = "Writing to Repository...";
         }
 
-        const fPath = `${CONFIG.dataPath}${CONFIG.currentYear}.json`;
-        let fData; try { fData = await githubRequest(fPath); } catch { fData = { content: btoa("[]"), sha: null }; }
-        const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
-
-        // Find existing media if editing and no new files were uploaded
         let finalMedia = newMediaPaths;
         if (isEditing && files.length === 0) {
             const existingPost = content.find(p => p.id === pid);
@@ -297,7 +306,8 @@ async function handlePostSave(e) {
             content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))),
             sha: fData.sha
         });
-        alert(isEditing ? "Post updated successfully!" : "Post saved successfully!");
+        
+        alert("Changes saved to the database. Due to GitHub's processing time, these changes will appear on the public website in about 1–2 minutes.");
         location.reload();
     } catch (err) { alert("Error: " + err.message); saveBtn.disabled = false; saveBtn.innerText = "Save & Publish"; }
 }
@@ -311,7 +321,7 @@ function setupEventListeners() {
     DOM.authCancel.onclick = () => DOM.authModal.style.display='none';
     DOM.authSubmit.onclick = () => { 
         const t = DOM.authInput.value.trim(); 
-        if(t.startsWith('ghp_')){ sessionStorage.setItem('github_pat', t); location.reload(); } 
+        if(t.startsWith('ghp_') || t.startsWith('github_pat_')){ sessionStorage.setItem('github_pat', t); location.reload(); } 
     };
     DOM.editorCancel.onclick = () => DOM.editorModal.style.display='none';
     DOM.editorForm.onsubmit = handlePostSave;
