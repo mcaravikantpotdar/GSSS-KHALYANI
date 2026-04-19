@@ -37,6 +37,10 @@
 
     <main id="content-layout" class="layout-grid">
         <section id="feed-column" class="feed-container">
+            <div id="admin-control-panel" style="display: none; margin-bottom: 2rem; text-align: center;">
+                <button id="btn-create-post" class="btn-primary" style="display: inline-block; padding: 0.8rem 2rem;">+ Create New Post</button>
+            </div>
+            
             <div id="feed-loader" class="loader">Loading updates...</div>
         </section>
         <aside id="sidebar-column" class="sidebar-container">
@@ -73,6 +77,8 @@
         <div class="modal-content editor-box">
             <h2 id="editor-title">Post Editor</h2>
             <form id="post-editor-form">
+                <input type="hidden" id="edit-post-id" value="">
+                
                 <div class="form-group">
                     <label>Categories (Select one or more)</label>
                     <div id="edit-category-container" class="checkbox-grid"></div>
