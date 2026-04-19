@@ -26,8 +26,11 @@ window.insertTable = function() {
    ========================================================================== */
 
 let state = {
-    schoolDetails: null, feedData: [], isAdmin: false,
-    pat: sessionStorage.getItem('github_pat') || null
+    schoolDetails: null, 
+    feedData: [], 
+    isAdmin: false,
+    pat: sessionStorage.getItem('github_pat') || null,
+    currentEditingMedia: [] // Tracks images during an active edit
 };
 
 const DOM = {
@@ -46,7 +49,8 @@ const DOM = {
     editorModal: document.getElementById('modal-editor'),
     editorForm: document.getElementById('post-editor-form'),
     editorCancel: document.getElementById('btn-editor-cancel'),
-    linksList: document.getElementById('quick-links-list')
+    linksList: document.getElementById('quick-links-list'),
+    mediaPreview: document.getElementById('edit-preview-container')
 };
 
 async function init() {
@@ -72,7 +76,7 @@ async function fetchSchoolDetails() {
         state.schoolDetails = await res.json();
         renderHero();
         renderSidebar();
-        renderAdminUI(); // Render categories once config is loaded
+        renderAdminUI();
     } catch (e) { console.error(e); }
 }
 
@@ -80,12 +84,8 @@ async function fetchFeedData() {
     try {
         const res = await fetch(`${CONFIG.dataPath}${CONFIG.currentYear}.json?t=${Date.now()}`);
         let data = await res.json();
-        
         if (!state.isAdmin) data = data.filter(p => p.status === "published");
-        
-        // MEMORY MASK
         data = data.filter(p => !sessionStorage.getItem('deleted_' + p.id));
-
         state.feedData = data.sort((a, b) => (b.is_pinned - a.is_pinned) || (b.timestamp - a.timestamp));
         renderFeed();
     } catch (e) { console.error(e); }
@@ -105,17 +105,13 @@ function renderSidebar() {
 }
 
 function renderFeed() {
-    // Locate the loader or existing posts and remove them, preserving the Admin Control Panel
     Array.from(DOM.feedContainer.children).forEach(child => {
-        if (child.id !== 'admin-control-panel') {
-            child.remove();
-        }
+        if (child.id !== 'admin-control-panel') child.remove();
     });
 
     if (state.feedData.length === 0) {
         const emptyMsg = document.createElement('div');
-        emptyMsg.className = "loader";
-        emptyMsg.innerText = "No posts available yet.";
+        emptyMsg.className = "loader"; emptyMsg.innerText = "No posts available yet.";
         DOM.feedContainer.appendChild(emptyMsg);
         return;
     }
@@ -149,12 +145,10 @@ function renderFeed() {
         }
 
         if (state.isAdmin) {
-            html += `
-                <div class="admin-actions">
-                    <button class="btn-secondary btn-small" onclick="window.editPost('${post.id}')">✏️ Edit</button>
-                    <button class="btn-secondary btn-small" style="color: #dc2626; border-color: #dc2626;" onclick="window.deletePost('${post.id}')">🗑️ Delete</button>
-                </div>
-            `;
+            html += `<div class="admin-actions">
+                <button class="btn-secondary btn-small" onclick="window.editPost('${post.id}')">✏️ Edit</button>
+                <button class="btn-secondary btn-small" style="color: #dc2626; border-color: #dc2626;" onclick="window.deletePost('${post.id}')">🗑️ Delete</button>
+            </div>`;
         }
         card.innerHTML = html;
         DOM.feedContainer.appendChild(card);
@@ -180,6 +174,25 @@ function renderAdminUI() {
     }
 }
 
+// NEW: Render Gallery in Modal
+function renderMediaPreview() {
+    DOM.mediaPreview.innerHTML = state.currentEditingMedia.length ? "" : "No existing images.";
+    state.currentEditingMedia.forEach((path, idx) => {
+        const item = document.createElement('div');
+        item.className = 'preview-item';
+        item.innerHTML = `
+            <img src="${path}">
+            <button type="button" class="remove-img-btn" onclick="window.removeExistingImage(${idx})">×</button>
+        `;
+        DOM.mediaPreview.appendChild(item);
+    });
+}
+
+window.removeExistingImage = function(index) {
+    state.currentEditingMedia.splice(index, 1);
+    renderMediaPreview();
+};
+
 window.editPost = function(postID) {
     const post = state.feedData.find(p => p.id === postID);
     if (!post) return;
@@ -190,48 +203,39 @@ window.editPost = function(postID) {
     document.getElementById('edit-title').value = post.title || post.title_en || "";
     document.getElementById('edit-content').innerHTML = post.content || post.content_en || "";
     
+    // Manage existing media
+    state.currentEditingMedia = post.media ? [...post.media] : [];
+    renderMediaPreview();
+
     const statusRadio = document.querySelector(`input[name="edit-status"][value="${post.status || 'published'}"]`);
     if(statusRadio) statusRadio.checked = true;
-    
     document.getElementById('edit-pinned').checked = post.is_pinned || false;
 
     const checkboxes = document.querySelectorAll('.cat-checkbox');
-    checkboxes.forEach(cb => {
-        cb.checked = post.categories && post.categories.includes(cb.value);
-    });
+    checkboxes.forEach(cb => { cb.checked = post.categories && post.categories.includes(cb.value); });
 
     DOM.editorModal.style.display = "flex";
 };
 
 window.deletePost = async function(postID) {
     if (!confirm("Are you sure you want to permanently delete this post?")) return;
-
     try {
         const postElement = document.querySelector(`[onclick*="${postID}"]`).closest('.post-card');
         if (postElement) postElement.style.opacity = '0.3';
-
         const fPath = `${CONFIG.dataPath}${CONFIG.currentYear}.json`;
         const fData = await githubRequest(fPath);
         let content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
-
         const newContent = content.filter(p => p.id !== postID);
-
         await githubRequest(fPath, 'PUT', {
             message: `Deleted post ${postID}`,
             content: btoa(unescape(encodeURIComponent(JSON.stringify(newContent, null, 2)))),
             sha: fData.sha
         });
-        
         sessionStorage.setItem('deleted_' + postID, 'true');
-
         state.feedData = state.feedData.filter(p => p.id !== postID);
         if (postElement) postElement.remove();
-
-        alert("Post deleted successfully from the database. It may take a minute for the public website to update.");
-    } catch (err) {
-        alert("Error deleting post: " + err.message);
-        location.reload(); 
-    }
+        alert("Post deleted successfully.");
+    } catch (err) { alert("Error deleting: " + err.message); location.reload(); }
 };
 
 async function processImage(file) {
@@ -266,34 +270,24 @@ async function handlePostSave(e) {
         let fData; try { fData = await githubRequest(fPath); } catch { fData = { content: btoa("[]"), sha: null }; }
         const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
 
-        if (isEditing) {
-            const index = content.findIndex(p => p.id === pid);
-            if (index === -1) {
-                alert("Cannot save changes. This post appears to have been deleted or moved. The page will now refresh to show the current state.");
-                location.reload();
-                return;
-            }
+        if (isEditing && content.findIndex(p => p.id === pid) === -1) {
+            alert("Post deleted elsewhere. Refreshing."); location.reload(); return;
         }
 
         const files = document.getElementById('edit-media').files;
         let newMediaPaths = [];
-
         if (files.length > 0) {
             for (let i = 0; i < files.length; i++) {
                 saveBtn.innerText = `Uploading Image ${i+1}/${files.length}...`;
                 const b64 = await processImage(files[i]);
-                const fname = `${CONFIG.currentYear}_${pid}_pic_${String(i+1).padStart(2,'0')}.jpg`;
+                const fname = `${CONFIG.currentYear}_${pid}_pic_${String(i+1).padStart(2,'0')}_${Date.now()}.jpg`;
                 await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: `Img ${i+1}`, content: b64 });
                 newMediaPaths.push(`${CONFIG.mediaPath}${fname}`);
             }
-            saveBtn.innerText = "Writing to Repository...";
         }
 
-        let finalMedia = newMediaPaths;
-        if (isEditing && files.length === 0) {
-            const existingPost = content.find(p => p.id === pid);
-            if (existingPost && existingPost.media) finalMedia = existingPost.media;
-        }
+        // Final Media = (Remaining Existing) + (Newly Uploaded)
+        const finalMedia = isEditing ? [...state.currentEditingMedia, ...newMediaPaths] : newMediaPaths;
 
         const postObj = {
             id: pid, 
@@ -307,28 +301,26 @@ async function handlePostSave(e) {
         };
 
         if (isEditing) {
-            const index = content.findIndex(p => p.id === pid);
-            content[index] = postObj;
+            const idx = content.findIndex(p => p.id === pid);
+            content[idx] = postObj;
         } else {
             content.unshift(postObj);
         }
 
         await githubRequest(fPath, 'PUT', {
-            message: isEditing ? `Updated post: ${postObj.title}` : `Add new post: ${postObj.title}`,
+            message: `${isEditing ? 'Updated' : 'Added'} post: ${postObj.title}`,
             content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))),
             sha: fData.sha
         });
         
-        alert("Changes saved to the database. Due to GitHub's processing time, these changes will appear on the public website in about 1–2 minutes.");
+        alert("Saved. Changes reflect on public site in 1-2 mins.");
         location.reload();
-    } catch (err) { alert("Error: " + err.message); saveBtn.disabled = false; saveBtn.innerText = "Save & Publish"; }
+    } catch (err) { alert("Error: " + err.message); saveBtn.disabled = false; saveBtn.innerText = "Save"; }
 }
 
 function checkAdminStatus() { 
     if (state.pat) { 
-        state.isAdmin = true; 
-        DOM.adminBtn.innerText = "Logout Admin"; 
-        DOM.adminBtn.style.color = "var(--accent-color)"; 
+        state.isAdmin = true; DOM.adminBtn.innerText = "Logout Admin"; DOM.adminBtn.style.color = "var(--accent-color)"; 
         if(DOM.adminPanel) DOM.adminPanel.style.display = "block";
     } 
 }
@@ -341,17 +333,17 @@ function setupEventListeners() {
         if(t.startsWith('ghp_') || t.startsWith('github_pat_')){ sessionStorage.setItem('github_pat', t); location.reload(); } 
     };
     DOM.editorCancel.onclick = () => DOM.editorModal.style.display='none';
-    
     if(DOM.createBtn) {
         DOM.createBtn.onclick = () => {
             DOM.editorForm.reset();
             document.getElementById('edit-post-id').value = ""; 
             document.getElementById('edit-content').innerHTML = ""; 
+            state.currentEditingMedia = [];
+            renderMediaPreview();
             document.getElementById('editor-title').innerText = "Create New Post";
             DOM.editorModal.style.display = "flex";
         };
     }
-    
     DOM.editorForm.onsubmit = handlePostSave;
 }
 
