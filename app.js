@@ -37,6 +37,8 @@ const DOM = {
     mission: document.getElementById('mission-statement'),
     feedContainer: document.getElementById('feed-column'),
     adminBtn: document.getElementById('btn-admin-login'),
+    adminPanel: document.getElementById('admin-control-panel'),
+    createBtn: document.getElementById('btn-create-post'),
     authModal: document.getElementById('modal-auth'),
     authInput: document.getElementById('input-pat'),
     authSubmit: document.getElementById('btn-auth-submit'),
@@ -50,10 +52,6 @@ const DOM = {
 async function init() {
     checkAdminStatus();
     setupEventListeners();
-    
-    // Unchain the UI: Draw the admin button instantly, before waiting for network
-    renderAdminUI();
-    
     await fetchSchoolDetails();
     await fetchFeedData();
 }
@@ -74,8 +72,7 @@ async function fetchSchoolDetails() {
         state.schoolDetails = await res.json();
         renderHero();
         renderSidebar();
-        // Re-run AdminUI to populate categories now that data has arrived
-        renderAdminUI();
+        renderAdminUI(); // Render categories once config is loaded
     } catch (e) { console.error(e); }
 }
 
@@ -86,7 +83,7 @@ async function fetchFeedData() {
         
         if (!state.isAdmin) data = data.filter(p => p.status === "published");
         
-        // MEMORY MASK: Filter out any posts marked as deleted in this browser session
+        // MEMORY MASK
         data = data.filter(p => !sessionStorage.getItem('deleted_' + p.id));
 
         state.feedData = data.sort((a, b) => (b.is_pinned - a.is_pinned) || (b.timestamp - a.timestamp));
@@ -108,7 +105,20 @@ function renderSidebar() {
 }
 
 function renderFeed() {
-    DOM.feedContainer.innerHTML = state.feedData.length ? "" : `<div class="loader">No posts available yet.</div>`;
+    // Locate the loader or existing posts and remove them, preserving the Admin Control Panel
+    Array.from(DOM.feedContainer.children).forEach(child => {
+        if (child.id !== 'admin-control-panel') {
+            child.remove();
+        }
+    });
+
+    if (state.feedData.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = "loader";
+        emptyMsg.innerText = "No posts available yet.";
+        DOM.feedContainer.appendChild(emptyMsg);
+        return;
+    }
     
     state.feedData.forEach(post => {
         const card = document.createElement('article');
@@ -149,9 +159,6 @@ function renderFeed() {
         card.innerHTML = html;
         DOM.feedContainer.appendChild(card);
     });
-
-    // Re-attach admin UI so it survives the container wipe and sits at the top
-    renderAdminUI();
 }
 
 window.changeSlide = function(btn, dir) {
@@ -166,29 +173,7 @@ window.changeSlide = function(btn, dir) {
 };
 
 function renderAdminUI() {
-    if (!state.isAdmin) return;
-    
-    // Prevent duplicate buttons if called multiple times
-    let btn = document.getElementById('btn-create-post-admin');
-    if (!btn) {
-        btn = document.createElement('button');
-        btn.id = 'btn-create-post-admin';
-        btn.className = "btn-primary"; 
-        btn.style.display = "block"; 
-        btn.style.margin = "0 auto 2rem auto";
-        btn.innerText = "+ Create New Post"; 
-        btn.onclick = () => {
-            DOM.editorForm.reset();
-            document.getElementById('edit-post-id').value = ""; 
-            document.getElementById('edit-content').innerHTML = ""; 
-            document.getElementById('editor-title').innerText = "Create New Post";
-            DOM.editorModal.style.display = "flex";
-        };
-    }
-    DOM.feedContainer.prepend(btn);
-
-    // Populate categories safely once data exists
-    if (state.schoolDetails && state.schoolDetails.categories) {
+    if (state.isAdmin && state.schoolDetails && state.schoolDetails.categories) {
         document.getElementById('edit-category-container').innerHTML = state.schoolDetails.categories.map(c => 
             `<label><input type="checkbox" class="cat-checkbox" value="${c}"> ${c}</label>`
         ).join('');
@@ -205,7 +190,9 @@ window.editPost = function(postID) {
     document.getElementById('edit-title').value = post.title || post.title_en || "";
     document.getElementById('edit-content').innerHTML = post.content || post.content_en || "";
     
-    document.querySelector(`input[name="edit-status"][value="${post.status || 'published'}"]`).checked = true;
+    const statusRadio = document.querySelector(`input[name="edit-status"][value="${post.status || 'published'}"]`);
+    if(statusRadio) statusRadio.checked = true;
+    
     document.getElementById('edit-pinned').checked = post.is_pinned || false;
 
     const checkboxes = document.querySelectorAll('.cat-checkbox');
@@ -235,7 +222,6 @@ window.deletePost = async function(postID) {
             sha: fData.sha
         });
         
-        // MEMORY MASK: Record the deletion locally
         sessionStorage.setItem('deleted_' + postID, 'true');
 
         state.feedData = state.feedData.filter(p => p.id !== postID);
@@ -280,7 +266,6 @@ async function handlePostSave(e) {
         let fData; try { fData = await githubRequest(fPath); } catch { fData = { content: btoa("[]"), sha: null }; }
         const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
 
-        // EXISTENCE CHECK FOR GHOST EDITS
         if (isEditing) {
             const index = content.findIndex(p => p.id === pid);
             if (index === -1) {
@@ -340,7 +325,12 @@ async function handlePostSave(e) {
 }
 
 function checkAdminStatus() { 
-    if (state.pat) { state.isAdmin = true; DOM.adminBtn.innerText = "Logout Admin"; DOM.adminBtn.style.color = "var(--accent-color)"; } 
+    if (state.pat) { 
+        state.isAdmin = true; 
+        DOM.adminBtn.innerText = "Logout Admin"; 
+        DOM.adminBtn.style.color = "var(--accent-color)"; 
+        if(DOM.adminPanel) DOM.adminPanel.style.display = "block";
+    } 
 }
 
 function setupEventListeners() {
@@ -351,6 +341,17 @@ function setupEventListeners() {
         if(t.startsWith('ghp_') || t.startsWith('github_pat_')){ sessionStorage.setItem('github_pat', t); location.reload(); } 
     };
     DOM.editorCancel.onclick = () => DOM.editorModal.style.display='none';
+    
+    if(DOM.createBtn) {
+        DOM.createBtn.onclick = () => {
+            DOM.editorForm.reset();
+            document.getElementById('edit-post-id').value = ""; 
+            document.getElementById('edit-content').innerHTML = ""; 
+            document.getElementById('editor-title').innerText = "Create New Post";
+            DOM.editorModal.style.display = "flex";
+        };
+    }
+    
     DOM.editorForm.onsubmit = handlePostSave;
 }
 
