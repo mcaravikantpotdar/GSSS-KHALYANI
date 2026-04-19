@@ -50,9 +50,12 @@ const DOM = {
 async function init() {
     checkAdminStatus();
     setupEventListeners();
+    
+    // Unchain the UI: Draw the admin button instantly, before waiting for network
+    renderAdminUI();
+    
     await fetchSchoolDetails();
     await fetchFeedData();
-    renderAdminUI();
 }
 
 async function githubRequest(path, method = 'GET', body = null) {
@@ -71,6 +74,8 @@ async function fetchSchoolDetails() {
         state.schoolDetails = await res.json();
         renderHero();
         renderSidebar();
+        // Re-run AdminUI to populate categories now that data has arrived
+        renderAdminUI();
     } catch (e) { console.error(e); }
 }
 
@@ -104,6 +109,7 @@ function renderSidebar() {
 
 function renderFeed() {
     DOM.feedContainer.innerHTML = state.feedData.length ? "" : `<div class="loader">No posts available yet.</div>`;
+    
     state.feedData.forEach(post => {
         const card = document.createElement('article');
         card.className = `post-card ${post.is_pinned ? 'pinned' : ''}`;
@@ -120,6 +126,7 @@ function renderFeed() {
             <h2 class="post-title-en">${displayTitle}</h2>
             <div class="post-content">${displayContent}</div>
         `;
+        
         if (post.media && post.media.length > 0) {
             html += `<div class="post-media">`;
             post.media.forEach((m, idx) => html += `<img src="${m}" class="slider-img ${idx === 0 ? 'active' : ''}">`);
@@ -142,6 +149,9 @@ function renderFeed() {
         card.innerHTML = html;
         DOM.feedContainer.appendChild(card);
     });
+
+    // Re-attach admin UI so it survives the container wipe and sits at the top
+    renderAdminUI();
 }
 
 window.changeSlide = function(btn, dir) {
@@ -157,18 +167,27 @@ window.changeSlide = function(btn, dir) {
 
 function renderAdminUI() {
     if (!state.isAdmin) return;
-    const btn = document.createElement('button');
-    btn.className = "btn-primary"; btn.style.display = "block"; btn.style.margin = "0 auto 2rem auto";
-    btn.innerText = "+ Create New Post"; 
-    btn.onclick = () => {
-        DOM.editorForm.reset();
-        document.getElementById('edit-post-id').value = ""; 
-        document.getElementById('edit-content').innerHTML = ""; 
-        document.getElementById('editor-title').innerText = "Create New Post";
-        DOM.editorModal.style.display = "flex";
-    };
+    
+    // Prevent duplicate buttons if called multiple times
+    let btn = document.getElementById('btn-create-post-admin');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'btn-create-post-admin';
+        btn.className = "btn-primary"; 
+        btn.style.display = "block"; 
+        btn.style.margin = "0 auto 2rem auto";
+        btn.innerText = "+ Create New Post"; 
+        btn.onclick = () => {
+            DOM.editorForm.reset();
+            document.getElementById('edit-post-id').value = ""; 
+            document.getElementById('edit-content').innerHTML = ""; 
+            document.getElementById('editor-title').innerText = "Create New Post";
+            DOM.editorModal.style.display = "flex";
+        };
+    }
     DOM.feedContainer.prepend(btn);
 
+    // Populate categories safely once data exists
     if (state.schoolDetails && state.schoolDetails.categories) {
         document.getElementById('edit-category-container').innerHTML = state.schoolDetails.categories.map(c => 
             `<label><input type="checkbox" class="cat-checkbox" value="${c}"> ${c}</label>`
@@ -216,7 +235,7 @@ window.deletePost = async function(postID) {
             sha: fData.sha
         });
         
-        // MEMORY MASK: Record the deletion locally so it doesn't reappear on refresh
+        // MEMORY MASK: Record the deletion locally
         sessionStorage.setItem('deleted_' + postID, 'true');
 
         state.feedData = state.feedData.filter(p => p.id !== postID);
