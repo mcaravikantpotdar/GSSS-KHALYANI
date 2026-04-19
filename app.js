@@ -103,7 +103,6 @@ function renderFeed() {
         const card = document.createElement('article');
         card.className = `post-card ${post.is_pinned ? 'pinned' : ''}`;
         
-        // FIX: The "Undefined" Fallback Logic
         const displayTitle = post.title || post.title_en || "Untitled Post";
         const displayContent = post.content || post.content_en || "No content available.";
 
@@ -126,6 +125,16 @@ function renderFeed() {
             }
             html += `</div>`;
         }
+
+        // NEW: Actionable Edit and Delete Buttons
+        if (state.isAdmin) {
+            html += `
+                <div class="admin-actions">
+                    <button class="btn-secondary btn-small" onclick="window.editPost('${post.id}')">✏️ Edit</button>
+                    <button class="btn-secondary btn-small" style="color: #dc2626; border-color: #dc2626;" onclick="window.deletePost('${post.id}')">🗑️ Delete</button>
+                </div>
+            `;
+        }
         card.innerHTML = html;
         DOM.feedContainer.appendChild(card);
     });
@@ -146,8 +155,12 @@ function renderAdminUI() {
     if (!state.isAdmin) return;
     const btn = document.createElement('button');
     btn.className = "btn-primary"; btn.style.display = "block"; btn.style.margin = "0 auto 2rem auto";
-    btn.innerText = "+ Create New Post"; btn.onclick = () => {
+    btn.innerText = "+ Create New Post"; 
+    btn.onclick = () => {
+        DOM.editorForm.reset();
+        document.getElementById('edit-post-id').value = ""; // Clear ID for new post
         document.getElementById('edit-content').innerHTML = ""; 
+        document.getElementById('editor-title').innerText = "Create New Post";
         DOM.editorModal.style.display = "flex";
     };
     DOM.feedContainer.prepend(btn);
@@ -158,6 +171,55 @@ function renderAdminUI() {
         ).join('');
     }
 }
+
+// NEW: Edit Post Logic
+window.editPost = function(postID) {
+    const post = state.feedData.find(p => p.id === postID);
+    if (!post) return;
+
+    DOM.editorForm.reset();
+    document.getElementById('edit-post-id').value = post.id;
+    document.getElementById('editor-title').innerText = "Edit Post";
+    document.getElementById('edit-title').value = post.title || post.title_en || "";
+    document.getElementById('edit-content').innerHTML = post.content || post.content_en || "";
+    
+    // Set Status & Pin
+    document.querySelector(`input[name="edit-status"][value="${post.status || 'published'}"]`).checked = true;
+    document.getElementById('edit-pinned').checked = post.is_pinned || false;
+
+    // Set Categories
+    const checkboxes = document.querySelectorAll('.cat-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = post.categories && post.categories.includes(cb.value);
+    });
+
+    DOM.editorModal.style.display = "flex";
+};
+
+// NEW: Delete Post Logic
+window.deletePost = async function(postID) {
+    if (!confirm("Are you sure you want to permanently delete this post?")) return;
+
+    try {
+        const fPath = `${CONFIG.dataPath}${CONFIG.currentYear}.json`;
+        const fData = await githubRequest(fPath);
+        let content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
+
+        // Filter out the deleted post
+        const newContent = content.filter(p => p.id !== postID);
+
+        await githubRequest(fPath, 'PUT', {
+            message: `Deleted post ${postID}`,
+            content: btoa(unescape(encodeURIComponent(JSON.stringify(newContent, null, 2)))),
+            sha: fData.sha
+        });
+        
+        alert("Post deleted successfully.");
+        location.reload();
+    } catch (err) {
+        alert("Error deleting post: " + err.message);
+    }
+};
 
 async function processImage(file) {
     return new Promise(res => {
@@ -183,39 +245,59 @@ async function handlePostSave(e) {
     saveBtn.innerText = "Saving to GitHub..."; saveBtn.disabled = true;
 
     try {
-        const ts = Date.now();
-        const pid = `post_${ts}`;
-        const media = [];
+        const editPostID = document.getElementById('edit-post-id').value;
+        const isEditing = !!editPostID;
+        const pid = isEditing ? editPostID : `post_${Date.now()}`;
+        
         const files = document.getElementById('edit-media').files;
+        let newMediaPaths = [];
 
-        for (let i = 0; i < files.length; i++) {
-            const b64 = await processImage(files[i]);
-            const fname = `${CONFIG.currentYear}_${pid}_pic_${String(i+1).padStart(2,'0')}.jpg`;
-            await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: `Img ${i+1}`, content: b64 });
-            media.push(`${CONFIG.mediaPath}${fname}`);
+        // Upload new files if any are selected
+        if (files.length > 0) {
+            for (let i = 0; i < files.length; i++) {
+                saveBtn.innerText = `Uploading Image ${i+1}/${files.length}...`;
+                const b64 = await processImage(files[i]);
+                const fname = `${CONFIG.currentYear}_${pid}_pic_${String(i+1).padStart(2,'0')}.jpg`;
+                await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: `Img ${i+1}`, content: b64 });
+                newMediaPaths.push(`${CONFIG.mediaPath}${fname}`);
+            }
         }
 
         const fPath = `${CONFIG.dataPath}${CONFIG.currentYear}.json`;
         let fData; try { fData = await githubRequest(fPath); } catch { fData = { content: btoa("[]"), sha: null }; }
         const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
 
-        const post = {
-            id: pid, timestamp: ts, 
+        // Find existing media if editing and no new files were uploaded
+        let finalMedia = newMediaPaths;
+        if (isEditing && files.length === 0) {
+            const existingPost = content.find(p => p.id === pid);
+            if (existingPost && existingPost.media) finalMedia = existingPost.media;
+        }
+
+        const postObj = {
+            id: pid, 
+            timestamp: isEditing ? content.find(p => p.id === pid).timestamp : Date.now(), 
             status: document.querySelector('input[name="edit-status"]:checked').value,
             is_pinned: document.getElementById('edit-pinned').checked,
             categories: Array.from(document.querySelectorAll('.cat-checkbox:checked')).map(c => c.value),
             title: document.getElementById('edit-title').value,
-            content: document.getElementById('edit-content').innerHTML, // Grabs the Paste content
-            media: media
+            content: document.getElementById('edit-content').innerHTML,
+            media: finalMedia
         };
 
-        content.unshift(post);
+        if (isEditing) {
+            const index = content.findIndex(p => p.id === pid);
+            content[index] = postObj;
+        } else {
+            content.unshift(postObj);
+        }
+
         await githubRequest(fPath, 'PUT', {
-            message: `Add new post: ${post.title}`,
+            message: isEditing ? `Updated post: ${postObj.title}` : `Add new post: ${postObj.title}`,
             content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))),
             sha: fData.sha
         });
-        alert("Post saved successfully!");
+        alert(isEditing ? "Post updated successfully!" : "Post saved successfully!");
         location.reload();
     } catch (err) { alert("Error: " + err.message); saveBtn.disabled = false; saveBtn.innerText = "Save & Publish"; }
 }
