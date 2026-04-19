@@ -1,7 +1,7 @@
 :root {
     --primary-color: #1e3a8a; --secondary-color: #2563eb; --accent-color: #f59e0b; 
     --bg-color: #f3f4f6; --card-bg: #ffffff; --text-main: #1f2937; --text-muted: #6b7280;
-    --border-color: #e5e7eb; --max-width: 1200px; --border-radius: 8px;
+    --border-color: #d1d5db; --max-width: 1200px; --border-radius: 8px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -18,8 +18,7 @@ body { font-family: sans-serif; background-color: var(--bg-color); color: var(--
 .layout-grid { max-width: var(--max-width); margin: 2rem auto; padding: 0 1rem; display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
 @media (max-width: 768px) { .layout-grid { grid-template-columns: 1fr; } }
 
-/* POST CONTENT STYLING (Tables, Lists, Links) */
-.post-card { background: var(--card-bg); border-radius: var(--border-radius); padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--border-color); position: relative; }
+.post-card { background: var(--card-bg); border-radius: var(--border-radius); padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid #e5e7eb; position: relative; }
 .post-card.pinned { border-left: 5px solid var(--primary-color); }
 .pin-badge { position: absolute; top: 10px; right: 10px; background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
 
@@ -27,28 +26,35 @@ body { font-family: sans-serif; background-color: var(--bg-color); color: var(--
 .post-content a { color: var(--secondary-color); font-weight: bold; text-decoration: underline; }
 .post-content ul, .post-content ol { margin: 1rem 0; padding-left: 2rem; }
 .post-content li { margin-bottom: 0.5rem; }
+.post-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; border: 1px solid #e5e7eb; }
+.post-content th, .post-content td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
 
-.post-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
-.post-content th, .post-content td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
-.post-content th { background: #f8fafc; color: var(--primary-color); }
-
-/* IMAGES & SLIDER */
 .post-media { position: relative; margin-top: 1rem; border-radius: 8px; overflow: hidden; background: #000; min-height: 200px; }
 .slider-img { width: 100%; max-height: 500px; object-fit: contain; display: none; }
 .slider-img.active { display: block; }
 .slider-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; padding: 10px; cursor: pointer; }
 .slider-counter { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; }
 
-/* EDITOR TOOLBAR */
-.editor-toolbar { background: #f1f5f9; padding: 5px; border: 1px solid var(--border-color); border-bottom: none; border-radius: 4px 4px 0 0; display: flex; gap: 5px; }
-.editor-toolbar button { padding: 4px 8px; cursor: pointer; background: white; border: 1px solid #cbd5e1; border-radius: 3px; font-size: 0.8rem; }
-.editor-toolbar button:hover { background: #e2e8f0; }
+/* RICH EDITOR BOX FIX */
+.editor-toolbar { background: #f9fafb; padding: 8px; border: 1px solid var(--border-color); border-bottom: none; border-radius: 4px 4px 0 0; display: flex; gap: 5px; }
+.editor-toolbar button { padding: 4px 12px; cursor: pointer; background: white; border: 1px solid #d1d5db; border-radius: 3px; font-weight: bold; }
 
-.form-group textarea { width: 100%; border-radius: 0 0 4px 4px; padding: 10px; border: 1px solid var(--border-color); font-family: inherit; }
-.checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid var(--border-color); }
+.rich-editor { 
+    background: white; 
+    border: 2px solid var(--border-color); /* Restored the "Box" look */
+    border-radius: 0 0 4px 4px; 
+    padding: 15px; 
+    min-height: 250px; 
+    max-height: 450px; 
+    overflow-y: auto; 
+    outline: none;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+}
+.rich-editor:focus { border-color: var(--secondary-color); }
 
+.checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid #e5e7eb; }
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal-content { background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; }
+.modal-content { background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 750px; max-height: 90vh; overflow-y: auto; }
 .btn-primary { background: var(--primary-color); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 4px; cursor: pointer; font-weight: bold; }
 .btn-secondary { background: #e5e7eb; border: none; padding: 0.6rem 1.2rem; border-radius: 4px; cursor: pointer; }
 .footer-container { background: #111827; color: white; padding: 3rem 1rem; text-align: center; margin-top: 3rem; }
