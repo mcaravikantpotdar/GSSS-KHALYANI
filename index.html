@@ -40,8 +40,10 @@
             <div id="admin-control-panel" style="display: none; margin-bottom: 2rem; text-align: center;">
                 <button id="btn-create-post" class="btn-primary" style="display: inline-block; padding: 0.8rem 2rem;">+ Create New Post</button>
             </div>
+            
             <div id="feed-loader" class="loader">Loading updates...</div>
         </section>
+        
         <aside id="sidebar-column" class="sidebar-container">
             <div class="sidebar-widget"><h3>Quick Links</h3><ul id="quick-links-list"></ul></div>
             <div class="sidebar-widget"><h3>Archives</h3><ul id="archive-years-list"></ul></div>
@@ -102,14 +104,17 @@
                     </div>
                     <div id="edit-content" class="rich-editor" contenteditable="true"></div>
                 </div>
+
                 <div class="form-group">
-                    <label>Existing Images (Click X to remove from post)</label>
+                    <label>Current Images (Click X to remove)</label>
                     <div id="edit-preview-container" class="image-edit-preview"></div>
                 </div>
+
                 <div class="form-group">
                     <label>Upload New Images</label>
                     <input type="file" id="edit-media" accept="image/jpeg, image/png" multiple>
                 </div>
+                
                 <div class="modal-actions">
                     <button type="button" id="btn-editor-cancel" class="btn-secondary">Cancel</button>
                     <button type="submit" id="btn-editor-save" class="btn-primary">Save & Publish</button>
