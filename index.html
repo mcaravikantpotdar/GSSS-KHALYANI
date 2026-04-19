@@ -40,7 +40,6 @@
             <div id="admin-control-panel" style="display: none; margin-bottom: 2rem; text-align: center;">
                 <button id="btn-create-post" class="btn-primary" style="display: inline-block; padding: 0.8rem 2rem;">+ Create New Post</button>
             </div>
-            
             <div id="feed-loader" class="loader">Loading updates...</div>
         </section>
         <aside id="sidebar-column" class="sidebar-container">
@@ -93,7 +92,7 @@
                     <input type="text" id="edit-title" required placeholder="Title of your post...">
                 </div>
                 <div class="form-group">
-                    <label>Post Content (Paste formatted text, tables, or links here)</label>
+                    <label>Post Content</label>
                     <div class="editor-toolbar">
                         <button type="button" onclick="execCommand('bold')"><b>B</b></button>
                         <button type="button" onclick="execCommand('italic')"><i>I</i></button>
@@ -104,7 +103,11 @@
                     <div id="edit-content" class="rich-editor" contenteditable="true"></div>
                 </div>
                 <div class="form-group">
-                    <label>Images</label>
+                    <label>Existing Images (Click X to remove from post)</label>
+                    <div id="edit-preview-container" class="image-edit-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label>Upload New Images</label>
                     <input type="file" id="edit-media" accept="image/jpeg, image/png" multiple>
                 </div>
                 <div class="modal-actions">
