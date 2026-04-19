@@ -30,7 +30,7 @@ let state = {
     feedData: [], 
     isAdmin: false,
     pat: sessionStorage.getItem('github_pat') || null,
-    currentEditingMedia: [] // Tracks images during an active edit
+    currentEditingMedia: [] // Tracks existing images during edit
 };
 
 const DOM = {
@@ -85,7 +85,10 @@ async function fetchFeedData() {
         const res = await fetch(`${CONFIG.dataPath}${CONFIG.currentYear}.json?t=${Date.now()}`);
         let data = await res.json();
         if (!state.isAdmin) data = data.filter(p => p.status === "published");
+        
+        // MEMORY MASK: Filter out session-deleted posts
         data = data.filter(p => !sessionStorage.getItem('deleted_' + p.id));
+
         state.feedData = data.sort((a, b) => (b.is_pinned - a.is_pinned) || (b.timestamp - a.timestamp));
         renderFeed();
     } catch (e) { console.error(e); }
@@ -105,14 +108,15 @@ function renderSidebar() {
 }
 
 function renderFeed() {
+    // Preserve the Admin Panel, clear only posts/loaders
     Array.from(DOM.feedContainer.children).forEach(child => {
         if (child.id !== 'admin-control-panel') child.remove();
     });
 
     if (state.feedData.length === 0) {
-        const emptyMsg = document.createElement('div');
-        emptyMsg.className = "loader"; emptyMsg.innerText = "No posts available yet.";
-        DOM.feedContainer.appendChild(emptyMsg);
+        const msg = document.createElement('div');
+        msg.className = "loader"; msg.innerText = "No posts available yet.";
+        DOM.feedContainer.appendChild(msg);
         return;
     }
     
@@ -174,7 +178,7 @@ function renderAdminUI() {
     }
 }
 
-// NEW: Render Gallery in Modal
+// Media Management Logic
 function renderMediaPreview() {
     DOM.mediaPreview.innerHTML = state.currentEditingMedia.length ? "" : "No existing images.";
     state.currentEditingMedia.forEach((path, idx) => {
@@ -203,7 +207,6 @@ window.editPost = function(postID) {
     document.getElementById('edit-title').value = post.title || post.title_en || "";
     document.getElementById('edit-content').innerHTML = post.content || post.content_en || "";
     
-    // Manage existing media
     state.currentEditingMedia = post.media ? [...post.media] : [];
     renderMediaPreview();
 
@@ -234,8 +237,8 @@ window.deletePost = async function(postID) {
         sessionStorage.setItem('deleted_' + postID, 'true');
         state.feedData = state.feedData.filter(p => p.id !== postID);
         if (postElement) postElement.remove();
-        alert("Post deleted successfully.");
-    } catch (err) { alert("Error deleting: " + err.message); location.reload(); }
+        alert("Post deleted successfully from the database. It may take a minute for the public website to update.");
+    } catch (err) { alert("Error deleting post: " + err.message); location.reload(); }
 };
 
 async function processImage(file) {
@@ -270,8 +273,10 @@ async function handlePostSave(e) {
         let fData; try { fData = await githubRequest(fPath); } catch { fData = { content: btoa("[]"), sha: null }; }
         const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
 
+        // EXISTENCE CHECK
         if (isEditing && content.findIndex(p => p.id === pid) === -1) {
-            alert("Post deleted elsewhere. Refreshing."); location.reload(); return;
+            alert("Cannot save changes. This post appears to have been deleted or moved. The page will now refresh.");
+            location.reload(); return;
         }
 
         const files = document.getElementById('edit-media').files;
@@ -281,12 +286,11 @@ async function handlePostSave(e) {
                 saveBtn.innerText = `Uploading Image ${i+1}/${files.length}...`;
                 const b64 = await processImage(files[i]);
                 const fname = `${CONFIG.currentYear}_${pid}_pic_${String(i+1).padStart(2,'0')}_${Date.now()}.jpg`;
-                await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: `Img ${i+1}`, content: b64 });
+                await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: `Img upload`, content: b64 });
                 newMediaPaths.push(`${CONFIG.mediaPath}${fname}`);
             }
         }
 
-        // Final Media = (Remaining Existing) + (Newly Uploaded)
         const finalMedia = isEditing ? [...state.currentEditingMedia, ...newMediaPaths] : newMediaPaths;
 
         const postObj = {
@@ -313,9 +317,9 @@ async function handlePostSave(e) {
             sha: fData.sha
         });
         
-        alert("Saved. Changes reflect on public site in 1-2 mins.");
+        alert("Changes saved to the database. Due to GitHub's processing time, these changes will appear on the public website in about 1–2 minutes.");
         location.reload();
-    } catch (err) { alert("Error: " + err.message); saveBtn.disabled = false; saveBtn.innerText = "Save"; }
+    } catch (err) { alert("Error: " + err.message); saveBtn.disabled = false; saveBtn.innerText = "Save & Publish"; }
 }
 
 function checkAdminStatus() { 
