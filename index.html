@@ -71,23 +71,23 @@
 
     <div id="modal-editor" class="modal-overlay" style="display: none;">
         <div class="modal-content editor-box">
-            <h2>Post Editor</h2>
+            <h2 id="editor-title">Post Editor</h2>
             <form id="post-editor-form">
                 <div class="form-group">
-                    <label>Categories</label>
+                    <label>Categories (Select one or more)</label>
                     <div id="edit-category-container" class="checkbox-grid"></div>
                 </div>
                 <div class="form-group status-group">
                     <label><input type="radio" name="edit-status" value="published" checked> Published</label>
                     <label><input type="radio" name="edit-status" value="draft"> Draft</label>
-                    <label><input type="checkbox" id="edit-pinned"> Pin to Top</label>
+                    <label class="pin-toggle"><input type="checkbox" id="edit-pinned"> Pin to Top</label>
                 </div>
                 <div class="form-group">
-                    <label>Title</label>
-                    <input type="text" id="edit-title" required>
+                    <label for="edit-title">Post Title</label>
+                    <input type="text" id="edit-title" required placeholder="Title of your post...">
                 </div>
                 <div class="form-group">
-                    <label>Content</label>
+                    <label>Post Content (Paste formatted text, tables, or links here)</label>
                     <div class="editor-toolbar">
                         <button type="button" onclick="execCommand('bold')"><b>B</b></button>
                         <button type="button" onclick="execCommand('italic')"><i>I</i></button>
