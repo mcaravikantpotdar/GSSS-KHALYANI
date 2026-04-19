@@ -10,26 +10,15 @@ const CONFIG = {
     mediaPath: "media/"
 };
 
-// --- GLOBAL HTML INSERTER (Moved here to ensure buttons work) ---
-window.insertHTML = function(type) {
-    const area = document.getElementById('edit-content');
-    if (!area) return;
-    
-    const tags = {
-        'link': '<a href="https://LINK_HERE" target="_blank">TEXT_HERE</a>',
-        'list': '<ul>\n  <li>Item 1</li>\n  <li>Item 2</li>\n</ul>',
-        'table': '<table border="1">\n  <tr><th>Head 1</th><th>Head 2</th></tr>\n  <tr><td>Data 1</td><td>Data 2</td></tr>\n</table>',
-        'bold': '<b>BOLD_TEXT</b>'
-    };
-    
-    const start = area.selectionStart;
-    const end = area.selectionEnd;
-    const text = area.value;
-    
-    area.value = text.substring(0, start) + tags[type] + text.substring(end);
-    area.focus();
-    // Move cursor inside the tag for convenience
-    area.setSelectionRange(start + tags[type].length, start + tags[type].length);
+// --- RICH TEXT COMMANDS ---
+window.execCommand = function(command) {
+    document.execCommand(command, false, null);
+    document.getElementById('edit-content').focus();
+};
+
+window.insertTable = function() {
+    const tableHTML = `<table border="1" style="width:100%; border-collapse:collapse;"><tr><th>Header 1</th><th>Header 2</th></tr><tr><td>Data 1</td><td>Data 2</td></tr></table><p><br></p>`;
+    document.execCommand('insertHTML', false, tableHTML);
 };
 
 /* ==========================================================================
@@ -37,9 +26,7 @@ window.insertHTML = function(type) {
    ========================================================================== */
 
 let state = {
-    schoolDetails: null,
-    feedData: [],
-    isAdmin: false,
+    schoolDetails: null, feedData: [], isAdmin: false,
     pat: sessionStorage.getItem('github_pat') || null
 };
 
@@ -54,7 +41,6 @@ const DOM = {
     authInput: document.getElementById('input-pat'),
     authSubmit: document.getElementById('btn-auth-submit'),
     authCancel: document.getElementById('btn-auth-cancel'),
-    authError: document.getElementById('auth-error-msg'),
     editorModal: document.getElementById('modal-editor'),
     editorForm: document.getElementById('post-editor-form'),
     editorCancel: document.getElementById('btn-editor-cancel'),
@@ -107,10 +93,8 @@ function renderHero() {
 }
 
 function renderSidebar() {
-    if (!state.schoolDetails || !state.schoolDetails.categories) return;
-    DOM.linksList.innerHTML = state.schoolDetails.categories.map(cat => 
-        `<li><a href="#">${cat}</a></li>`
-    ).join('');
+    if (!state.schoolDetails) return;
+    DOM.linksList.innerHTML = state.schoolDetails.categories.map(c => `<li><a href="#">${c}</a></li>`).join('');
 }
 
 function renderFeed() {
@@ -119,29 +103,28 @@ function renderFeed() {
         const card = document.createElement('article');
         card.className = `post-card ${post.is_pinned ? 'pinned' : ''}`;
         
+        // FIX: The "Undefined" Fallback Logic
+        const displayTitle = post.title || post.title_en || "Untitled Post";
+        const displayContent = post.content || post.content_en || "No content available.";
+
         let html = `
             ${post.is_pinned ? '<span class="pin-badge">📌 Pinned</span>' : ''}
             <div class="post-header">
-                <div class="tags-container">${post.categories.map(c => `<span class="category-tag">#${c}</span>`).join('')}</div>
-                <span class="post-date">• ${new Date(post.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                <div class="tags-container">${post.categories ? post.categories.map(c => `<span class="category-tag">#${c}</span>`).join('') : ''}</div>
+                <span class="post-date">• ${new Date(post.timestamp).toLocaleDateString('en-IN')}</span>
             </div>
-            <h2 class="post-title-en">${post.title}</h2>
-            <div class="post-content">${post.content}</div>
+            <h2 class="post-title-en">${displayTitle}</h2>
+            <div class="post-content">${displayContent}</div>
         `;
-
         if (post.media && post.media.length > 0) {
             html += `<div class="post-media">`;
             post.media.forEach((m, idx) => html += `<img src="${m}" class="slider-img ${idx === 0 ? 'active' : ''}">`);
             if (post.media.length > 1) {
-                html += `<button class="slider-btn prev" onclick="changeSlide(this,-1)">&#10094;</button>
-                         <button class="slider-btn next" onclick="changeSlide(this,1)">&#10095;</button>
+                html += `<button class="slider-btn" style="left:0" onclick="changeSlide(this,-1)">&#10094;</button>
+                         <button class="slider-btn" style="right:0" onclick="changeSlide(this,1)">&#10095;</button>
                          <div class="slider-counter">1 / ${post.media.length}</div>`;
             }
             html += `</div>`;
-        }
-
-        if (state.isAdmin) {
-            html += `<div class="admin-actions"><button class="btn-secondary btn-small" onclick="alert('Edit logic coming soon!')">✏️ Edit</button></div>`;
         }
         card.innerHTML = html;
         DOM.feedContainer.appendChild(card);
@@ -163,7 +146,10 @@ function renderAdminUI() {
     if (!state.isAdmin) return;
     const btn = document.createElement('button');
     btn.className = "btn-primary"; btn.style.display = "block"; btn.style.margin = "0 auto 2rem auto";
-    btn.innerText = "+ Create New Post"; btn.onclick = () => DOM.editorModal.style.display = "flex";
+    btn.innerText = "+ Create New Post"; btn.onclick = () => {
+        document.getElementById('edit-content').innerHTML = ""; 
+        DOM.editorModal.style.display = "flex";
+    };
     DOM.feedContainer.prepend(btn);
 
     if (state.schoolDetails && state.schoolDetails.categories) {
@@ -203,10 +189,9 @@ async function handlePostSave(e) {
         const files = document.getElementById('edit-media').files;
 
         for (let i = 0; i < files.length; i++) {
-            saveBtn.innerText = `Uploading Image ${i+1}/${files.length}...`;
             const b64 = await processImage(files[i]);
             const fname = `${CONFIG.currentYear}_${pid}_pic_${String(i+1).padStart(2,'0')}.jpg`;
-            await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: `Upload image ${i+1}`, content: b64 });
+            await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: `Img ${i+1}`, content: b64 });
             media.push(`${CONFIG.mediaPath}${fname}`);
         }
 
@@ -220,7 +205,7 @@ async function handlePostSave(e) {
             is_pinned: document.getElementById('edit-pinned').checked,
             categories: Array.from(document.querySelectorAll('.cat-checkbox:checked')).map(c => c.value),
             title: document.getElementById('edit-title').value,
-            content: document.getElementById('edit-content').value,
+            content: document.getElementById('edit-content').innerHTML, // Grabs the Paste content
             media: media
         };
 
@@ -232,15 +217,11 @@ async function handlePostSave(e) {
         });
         alert("Post saved successfully!");
         location.reload();
-    } catch (err) { alert("Error saving: " + err.message); saveBtn.disabled = false; saveBtn.innerText = "Save & Publish"; }
+    } catch (err) { alert("Error: " + err.message); saveBtn.disabled = false; saveBtn.innerText = "Save & Publish"; }
 }
 
 function checkAdminStatus() { 
-    if (state.pat) { 
-        state.isAdmin = true; 
-        DOM.adminBtn.innerText = "Logout Admin"; 
-        DOM.adminBtn.style.color = "var(--accent-color)";
-    } 
+    if (state.pat) { state.isAdmin = true; DOM.adminBtn.innerText = "Logout Admin"; DOM.adminBtn.style.color = "var(--accent-color)"; } 
 }
 
 function setupEventListeners() {
@@ -248,7 +229,7 @@ function setupEventListeners() {
     DOM.authCancel.onclick = () => DOM.authModal.style.display='none';
     DOM.authSubmit.onclick = () => { 
         const t = DOM.authInput.value.trim(); 
-        if(t.startsWith('ghp_') || t.startsWith('github_pat_')){ sessionStorage.setItem('github_pat', t); location.reload(); } 
+        if(t.startsWith('ghp_')){ sessionStorage.setItem('github_pat', t); location.reload(); } 
     };
     DOM.editorCancel.onclick = () => DOM.editorModal.style.display='none';
     DOM.editorForm.onsubmit = handlePostSave;
