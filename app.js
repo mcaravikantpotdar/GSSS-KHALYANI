@@ -78,7 +78,12 @@ async function fetchFeedData() {
     try {
         const res = await fetch(`${CONFIG.dataPath}${CONFIG.currentYear}.json?t=${Date.now()}`);
         let data = await res.json();
+        
         if (!state.isAdmin) data = data.filter(p => p.status === "published");
+        
+        // MEMORY MASK: Filter out any posts marked as deleted in this browser session
+        data = data.filter(p => !sessionStorage.getItem('deleted_' + p.id));
+
         state.feedData = data.sort((a, b) => (b.is_pinned - a.is_pinned) || (b.timestamp - a.timestamp));
         renderFeed();
     } catch (e) { console.error(e); }
@@ -211,6 +216,9 @@ window.deletePost = async function(postID) {
             sha: fData.sha
         });
         
+        // MEMORY MASK: Record the deletion locally so it doesn't reappear on refresh
+        sessionStorage.setItem('deleted_' + postID, 'true');
+
         state.feedData = state.feedData.filter(p => p.id !== postID);
         if (postElement) postElement.remove();
 
