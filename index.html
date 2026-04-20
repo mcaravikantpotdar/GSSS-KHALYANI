@@ -1,1 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Portal</title>
+    <link rel="stylesheet" href="style.css">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+</head>
+<body>
 
+    <header id="hero-section" class="hero-container shadow-bottom">
+        <div class="hero-content">
+            <img id="school-logo" src="" alt="School Logo" class="logo" style="display: none;">
+            <div class="identity-text">
+                <h1 id="school-name">Loading...</h1>
+                <p id="udise-code" class="udise"></p>
+                <p id="mission-statement" class="mission"></p>
+            </div>
+        </div>
+    </header>
+
+    <div id="urgent-ticker-container" class="ticker-wrapper" style="display: none;">
+        <div class="ticker-label">URGENT</div>
+        <div class="ticker-content">
+            <div id="ticker-text" class="ticker-scroll"></div>
+        </div>
+    </div>
+
+    <nav id="main-nav" class="navigation-bar shadow-bottom">
+        <div class="nav-tabs">
+            <button class="nav-btn active" id="tab-feed">Latest Feed</button>
+            <button class="nav-btn" id="tab-people">Our Team</button>
+        </div>
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search...">
+        </div>
+    </nav>
+
+    <main id="content-layout" class="layout-grid">
+        <section id="feed-column" class="feed-container tab-content active">
+            <div id="admin-control-panel" class="admin-panel" style="display: none;">
+                <button id="btn-create-post" class="btn-primary elevation-1">+ Create New Post</button>
+                <button id="btn-edit-ticker" class="btn-secondary elevation-1" style="margin-left: 10px;">📢 Update Alert Ticker</button>
+            </div>
+            <div id="feed-loader" class="loader">Loading updates...</div>
+        </section>
+
+        <section id="people-column" class="people-container tab-content" style="display: none;">
+            <div id="admin-staff-panel" class="admin-panel" style="display: none;">
+                <button id="btn-add-staff" class="btn-primary elevation-1">+ Add Staff Member</button>
+            </div>
+            <div id="staff-loader" class="loader">Loading staff directory...</div>
+            <div id="staff-grid" class="staff-grid"></div>
+        </section>
+        
+        <aside id="sidebar-column" class="sidebar-container">
+            <div class="sidebar-widget elevation-1">
+                <h3>Quick Links</h3>
+                <ul id="quick-links-list"></ul>
+            </div>
+        </aside>
+    </main>
+
+    <footer id="global-footer" class="footer-container">
+        <div class="footer-grid">
+            <div class="footer-col" id="footer-contact">
+                <h4>Contact Us</h4>
+                <p id="contact-address"></p><p id="contact-phone"></p><p id="contact-email"></p>
+            </div>
+            <div class="footer-col admin-access">
+                <button id="btn-admin-login" class="admin-link">Admin Login</button>
+            </div>
+        </div>
+    </footer>
+
+    <div id="modal-auth" class="modal-overlay" style="display: none;">
+        <div class="modal-content auth-box elevation-2">
+            <h2>Admin Authentication</h2>
+            <input type="password" id="input-pat" placeholder="GitHub PAT">
+            <div class="modal-actions">
+                <button id="btn-auth-cancel" class="btn-secondary">Cancel</button>
+                <button id="btn-auth-submit" class="btn-primary">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-editor" class="modal-overlay" style="display: none;">
+        <div class="modal-content editor-box elevation-2">
+            <h2 id="editor-title">Post Editor</h2>
+            <form id="post-editor-form">
+                <input type="hidden" id="edit-post-id" value="">
+                <div class="form-group"><label>Categories</label><div id="edit-category-container" class="checkbox-grid"></div></div>
+                <div class="form-group status-group">
+                    <label><input type="radio" name="edit-status" value="published" checked> Published</label>
+                    <label><input type="radio" name="edit-status" value="draft"> Draft</label>
+                    <label class="pin-toggle"><input type="checkbox" id="edit-pinned"> Pin to Top</label>
+                </div>
+                <div class="form-group"><label>Title</label><input type="text" id="edit-title" required></div>
+                <div class="form-group">
+                    <label>Content</label>
+                    <div class="editor-toolbar">
+                        <button type="button" onclick="execCommand('bold')">B</button>
+                        <button type="button" onclick="insertTable()">Table</button>
+                    </div>
+                    <div id="edit-content" class="rich-editor" contenteditable="true"></div>
+                </div>
+                <div class="form-group"><label>Current Images</label><div id="edit-preview-container" class="image-edit-preview"></div></div>
+                <div class="form-group"><label>Upload New Images</label><input type="file" id="edit-media" multiple></div>
+                <div class="modal-actions">
+                    <button type="button" id="btn-editor-cancel" class="btn-secondary">Cancel</button>
+                    <button type="submit" id="btn-editor-save" class="btn-primary">Save & Publish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-staff" class="modal-overlay" style="display: none;">
+        <div class="modal-content editor-box elevation-2">
+            <h2 id="staff-editor-title">Staff Editor</h2>
+            <form id="staff-editor-form">
+                <input type="hidden" id="edit-staff-id" value="">
+                <div class="form-group"><label>Full Name</label><input type="text" id="edit-staff-name" required></div>
+                <div class="form-group"><label>Designation</label><select id="edit-staff-designation" required><option value="LECTURER (SCHOOL NEW)">LECTURER (SCHOOL NEW)</option><option value="TGT-ARTS">TGT-ARTS</option></select></div>
+                <div class="form-group"><label>Subject</label><input type="text" id="edit-staff-subject"></div>
+                <div class="form-group"><label>Photo</label><div id="staff-preview-container" class="image-edit-preview"></div></div>
+                <div class="form-group"><input type="file" id="edit-staff-photo"></div>
+                <div class="modal-actions">
+                    <button type="button" id="btn-staff-cancel" class="btn-secondary">Cancel</button>
+                    <button type="submit" id="btn-staff-save" class="btn-primary">Save Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-ticker" class="modal-overlay" style="display: none;">
+        <div class="modal-content auth-box elevation-2">
+            <h2>📢 Update Alert Ticker</h2>
+            <p class="modal-subtitle">This message scrolls at the top of every page.</p>
+            <div class="form-group">
+                <textarea id="input-ticker-text" style="width: 100%; height: 80px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);"></textarea>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" id="input-ticker-active"> Show ticker to public</label>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-ticker-cancel" class="btn-secondary">Cancel</button>
+                <button id="btn-ticker-save" class="btn-primary">Update Ticker</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
