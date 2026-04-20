@@ -30,30 +30,28 @@ window.insertTable = () => { document.execCommand('insertHTML', false, `<table b
 window.changeSlide = (btn, dir) => {
     const container = btn.closest('.post-media');
     const imgs = container.querySelectorAll('.slider-img');
-    const count = container.querySelector('.slider-counter');
     let idx = Array.from(imgs).findIndex(img => img.classList.contains('active'));
     imgs[idx].classList.remove('active');
     let nIdx = (idx + dir + imgs.length) % imgs.length;
     imgs[nIdx].classList.add('active');
-    if (count) count.innerText = `${nIdx + 1} / ${imgs.length}`;
 };
 
 /* ==========================================================================
    SMART AUDITOR ENGINE (Wait 20s, then Poll 10s)
    ========================================================================== */
-function addToAuditor(type, id, expectedData = null) {
+window.addToAuditor = (type, id, expectedData = null) => {
     const queue = JSON.parse(sessionStorage.getItem('auditor_queue') || '{}');
     queue[id] = { type, data: expectedData, timestamp: Date.now(), attempts: 0 };
     sessionStorage.setItem('auditor_queue', JSON.stringify(queue));
-    ensureAuditorIsRunning();
-}
+    window.ensureAuditorIsRunning();
+};
 
-function ensureAuditorIsRunning() {
+window.ensureAuditorIsRunning = () => {
     if (state.auditorTimer) return;
-    state.auditorTimer = setInterval(auditVerificationLoop, 10000); // Check heartbeat every 10s
-}
+    state.auditorTimer = setInterval(window.auditVerificationLoop, 10000);
+};
 
-async function auditVerificationLoop() {
+window.auditVerificationLoop = async () => {
     const queue = JSON.parse(sessionStorage.getItem('auditor_queue') || '{}');
     const ids = Object.keys(queue);
     
@@ -66,13 +64,10 @@ async function auditVerificationLoop() {
     let changed = false;
     for (const id of ids) {
         const item = queue[id];
-        const elapsed = Date.now() - item.timestamp;
-
-        // "Smart Wait": First attempt at 20s, others every 10s thereafter
-        if (elapsed < 20000 && item.attempts === 0) continue;
+        if ((Date.now() - item.timestamp) < 20000 && item.attempts === 0) continue;
 
         item.attempts++;
-        const isVerified = await verifyRemoteState(item, id);
+        const isVerified = await window.verifyRemoteState(item, id);
 
         if (isVerified) {
             delete queue[id];
@@ -82,11 +77,11 @@ async function auditVerificationLoop() {
 
     if (changed) {
         sessionStorage.setItem('auditor_queue', JSON.stringify(queue));
-        await refreshAllData();
+        await window.refreshAllData();
     }
-}
+};
 
-async function verifyRemoteState(item, id) {
+window.verifyRemoteState = async (item, id) => {
     try {
         const t = Date.now();
         if (item.type === 'ticker') {
@@ -98,24 +93,22 @@ async function verifyRemoteState(item, id) {
             const res = await fetch(`${CONFIG.dataPath}${CONFIG.currentYear}.json?t=${t}`);
             const remote = await res.json();
             const found = remote.find(p => p.id === id);
-            if (!item.data) return !found; // Delete check
-            return JSON.stringify(found) === JSON.stringify(item.data);
+            return item.data ? JSON.stringify(found) === JSON.stringify(item.data) : !found;
         }
         if (item.type === 'staff') {
             const res = await fetch(`${CONFIG.dataPath}staff.json?t=${t}`);
             const remote = await res.json();
             const found = remote.find(s => s.id === id);
-            if (!item.data) return !found; // Delete check
-            return JSON.stringify(found) === JSON.stringify(item.data);
+            return item.data ? JSON.stringify(found) === JSON.stringify(item.data) : !found;
         }
     } catch (e) { return false; }
     return false;
-}
+};
 
 /* ==========================================================================
    API & FETCHING
    ========================================================================== */
-async function githubRequest(path, method = 'GET', body = null) {
+window.githubRequest = async (path, method = 'GET', body = null) => {
     const url = `https://api.github.com/repos/${CONFIG.githubOwner}/${CONFIG.githubRepo}/contents/${path}`;
     const headers = { 'Authorization': `token ${state.pat}`, 'Accept': 'application/vnd.github.v3+json' };
     const options = { method, headers };
@@ -123,50 +116,50 @@ async function githubRequest(path, method = 'GET', body = null) {
     const res = await fetch(url, options);
     if (!res.ok) throw new Error(`API Error: ${res.status}`);
     return await res.json();
-}
+};
 
-async function refreshAllData() {
-    await fetchSchoolDetails();
-    await fetchFeedData();
-    await fetchStaffData();
-}
+window.refreshAllData = async () => {
+    await window.fetchSchoolDetails();
+    await window.fetchFeedData();
+    await window.fetchStaffData();
+};
 
-async function fetchSchoolDetails() {
+window.fetchSchoolDetails = async () => {
     try {
         const res = await fetch(`${CONFIG.dataPath}school_details.json?t=${Date.now()}`);
         state.schoolDetails = await res.json();
-        renderHero();
-        renderSidebar();
+        window.renderHero();
+        window.renderSidebar();
     } catch (e) { console.error(e); }
-}
+};
 
-async function fetchFeedData() {
+window.fetchFeedData = async () => {
     try {
         const res = await fetch(`${CONFIG.dataPath}${CONFIG.currentYear}.json?t=${Date.now()}`);
         let data = await res.json();
         if (!state.isAdmin) data = data.filter(p => p.status === "published");
         state.feedData = data.sort((a, b) => (b.is_pinned - a.is_pinned) || (b.timestamp - a.timestamp));
-        renderFeed();
+        window.renderFeed();
     } catch (e) { console.error(e); }
-}
+};
 
-async function fetchStaffData() {
+window.fetchStaffData = async () => {
     try {
         const res = await fetch(`${CONFIG.dataPath}staff.json?t=${Date.now()}`);
         if(res.ok) state.staffData = await res.json();
-        renderStaff();
+        window.renderStaff();
     } catch (e) { console.error(e); }
-}
+};
 
 /* ==========================================================================
-   RENDERERS
+   RENDERERS (FIXED LOADERS)
    ========================================================================== */
-function isLocked(id) {
+window.isLocked = (id) => {
     const queue = JSON.parse(sessionStorage.getItem('auditor_queue') || '{}');
     return !!queue[id];
-}
+};
 
-function renderHero() {
+window.renderHero = () => {
     const d = state.schoolDetails; if(!d) return;
     document.getElementById('school-name').innerText = d.school_name;
     document.getElementById('udise-code').innerText = `UDISE: ${d.udise_code}`;
@@ -174,7 +167,7 @@ function renderHero() {
     const logo = document.getElementById('school-logo');
     if(d.logo_path) { logo.src = d.logo_path; logo.style.display = 'block'; }
 
-    const tickerLocked = isLocked('ticker_global');
+    const tickerLocked = window.isLocked('ticker_global');
     const ticker = d.alert_ticker || { message: "", is_active: false };
     const container = document.getElementById('urgent-ticker-container');
     if (ticker.is_active || tickerLocked) {
@@ -182,22 +175,25 @@ function renderHero() {
         document.getElementById('ticker-text').innerText = ticker.message;
         container.className = `ticker-wrapper ${tickerLocked ? 'sync-locked' : ''}`;
     } else { container.style.display = 'none'; }
-}
+};
 
-function renderSidebar() {
+window.renderSidebar = () => {
     const list = document.getElementById('quick-links-list');
     if(state.schoolDetails) list.innerHTML = state.schoolDetails.categories.map(c => `<li><a href="#">${c}</a></li>`).join('');
-}
+};
 
-function renderFeed() {
+window.renderFeed = () => {
     const container = document.getElementById('feed-column');
-    Array.from(container.children).forEach(c => { if(c.id !== 'admin-control-panel') c.remove(); });
+    // FIXED: Protect the loader from being deleted
+    Array.from(container.children).forEach(c => { 
+        if(c.id !== 'admin-control-panel' && c.id !== 'feed-loader') c.remove(); 
+    });
+
     state.feedData.forEach(post => {
-        const locked = isLocked(post.id);
+        const locked = window.isLocked(post.id);
         const card = document.createElement('article');
         card.className = `post-card ${post.is_pinned ? 'pinned' : ''} ${locked ? 'sync-locked' : ''}`;
         card.innerHTML = `
-            ${post.is_pinned ? '<span class="pin-badge">📌 Pinned</span>' : ''}
             <div class="post-header"><span class="post-date">${new Date(post.timestamp).toLocaleDateString()}</span></div>
             <h2>${post.title}</h2><div class="post-content">${post.content}</div>
             ${post.media && post.media.length ? `<div class="post-media">${post.media.map((m, i) => `<img src="${m}" class="slider-img ${i===0?'active':''}">`).join('')}${post.media.length > 1 ? `<button class="slider-btn" style="left:0" onclick="window.changeSlide(this,-1)">&#10094;</button><button class="slider-btn" style="right:0" onclick="window.changeSlide(this,1)">&#10095;</button>` : ''}</div>` : ''}
@@ -205,39 +201,45 @@ function renderFeed() {
         `;
         container.appendChild(card);
     });
-    document.getElementById('feed-loader').style.display = 'none';
-}
+    // Safety check for loader
+    const loader = document.getElementById('feed-loader');
+    if(loader) loader.style.display = 'none';
+};
 
-function renderStaff() {
-    const grid = document.getElementById('staff-grid'); grid.innerHTML = "";
+window.renderStaff = () => {
+    const grid = document.getElementById('staff-grid'); 
+    if(grid) grid.innerHTML = "";
     state.staffData.forEach(s => {
-        const locked = isLocked(s.id);
+        const locked = window.isLocked(s.id);
         const card = document.createElement('div'); card.className = `staff-card ${locked ? 'sync-locked' : ''}`;
         card.innerHTML = `<div class="staff-photo-container"><img src="${s.photo || 'media/default.png'}"></div><h3>${s.name}</h3><div class="staff-designation">${s.designation}</div><div>${s.subject || ''}</div>${state.isAdmin ? `<div class="admin-actions"><button class="btn-secondary" onclick="window.editStaff('${s.id}')">✏️ Edit</button><button class="btn-secondary" style="color:red" onclick="window.deleteStaff('${s.id}')">🗑️ Delete</button></div>` : ''}`;
-        grid.appendChild(card);
+        if(grid) grid.appendChild(card);
     });
-    document.getElementById('staff-loader').style.display = 'none';
-}
+    const loader = document.getElementById('staff-loader');
+    if(loader) loader.style.display = 'none';
+};
 
 /* ==========================================================================
-   IMAGE HELPERS
+   CRUD & GALLERY (ZERO-LOSS)
    ========================================================================== */
-window.removeExistingImage = (idx) => { state.currentEditingMedia.splice(idx, 1); renderMediaPreview(); };
-function renderMediaPreview() {
-    const c = document.getElementById('edit-preview-container'); c.innerHTML = "";
+window.removeExistingImage = (idx) => { state.currentEditingMedia.splice(idx, 1); window.renderMediaPreview(); };
+window.renderMediaPreview = () => {
+    const c = document.getElementById('edit-preview-container'); if(!c) return;
+    c.innerHTML = "";
     state.currentEditingMedia.forEach((p, i) => {
         const div = document.createElement('div'); div.className = 'preview-item';
         div.innerHTML = `<img src="${p}"><button type="button" class="remove-img-btn" onclick="window.removeExistingImage(${i})">×</button>`;
         c.appendChild(div);
     });
-}
-window.removeStaffImage = () => { state.currentEditingStaffPhoto = null; renderStaffPreview(); };
-function renderStaffPreview() {
-    const c = document.getElementById('staff-preview-container');
-    c.innerHTML = state.currentEditingStaffPhoto ? `<div class="preview-item"><img src="${state.currentEditingStaffPhoto}"><button type="button" class="remove-img-btn" onclick="window.removeStaffImage()">×</button></div>` : "None";
-}
+};
 
-async function processImage(file) {
+window.removeStaffImage = () => { state.currentEditingStaffPhoto = null; window.renderStaffPreview(); };
+window.renderStaffPreview = () => {
+    const c = document.getElementById('staff-preview-container'); if(!c) return;
+    c.innerHTML = state.currentEditingStaffPhoto ? `<div class="preview-item"><img src="${state.currentEditingStaffPhoto}"><button type="button" class="remove-img-btn" onclick="window.removeStaffImage()">×</button></div>` : "None";
+};
+
+window.processImage = async (file) => {
     return new Promise(res => {
         const r = new FileReader(); r.onload = e => {
             const i = new Image(); i.onload = () => {
@@ -248,29 +250,26 @@ async function processImage(file) {
             }; i.src = e.target.result;
         }; r.readAsDataURL(file);
     });
-}
+};
 
-/* ==========================================================================
-   CRUD HANDLERS
-   ========================================================================== */
 window.editPost = (id) => {
     const p = state.feedData.find(x => x.id === id); if(!p) return;
     document.getElementById('edit-post-id').value = p.id;
     document.getElementById('edit-title').value = p.title;
     document.getElementById('edit-content').innerHTML = p.content;
-    state.currentEditingMedia = [...(p.media || [])]; renderMediaPreview();
+    state.currentEditingMedia = [...(p.media || [])]; window.renderMediaPreview();
     document.getElementById('modal-editor').style.display = 'flex';
 };
 
 window.deletePost = async (id) => {
     if(!confirm("Delete?")) return;
     const fPath = `${CONFIG.dataPath}${CONFIG.currentYear}.json`;
-    const fData = await githubRequest(fPath);
+    const fData = await window.githubRequest(fPath);
     const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
     const newContent = content.filter(x => x.id !== id);
-    await githubRequest(fPath, 'PUT', { message: 'Del', content: btoa(unescape(encodeURIComponent(JSON.stringify(newContent, null, 2)))), sha: fData.sha });
-    addToAuditor('post', id, null); // Expected absence
-    state.feedData = state.feedData.filter(x => x.id !== id); renderFeed();
+    await window.githubRequest(fPath, 'PUT', { message: 'Del', content: btoa(unescape(encodeURIComponent(JSON.stringify(newContent, null, 2)))), sha: fData.sha });
+    window.addToAuditor('post', id, null);
+    state.feedData = state.feedData.filter(x => x.id !== id); window.renderFeed();
 };
 
 window.handlePostSave = async (e) => {
@@ -278,34 +277,24 @@ window.handlePostSave = async (e) => {
     try {
         const id = document.getElementById('edit-post-id').value || `post_${Date.now()}`;
         const fPath = `${CONFIG.dataPath}${CONFIG.currentYear}.json`;
-        let fData; try { fData = await githubRequest(fPath); } catch { fData = { content: btoa("[]"), sha: null }; }
+        let fData; try { fData = await window.githubRequest(fPath); } catch { fData = { content: btoa("[]"), sha: null }; }
         const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
-
         const files = document.getElementById('edit-media').files;
         let newPaths = [];
         for (let i=0; i<files.length; i++) {
-            const b64 = await processImage(files[i]);
+            const b64 = await window.processImage(files[i]);
             const fname = `${id}_${i}_${Date.now()}.jpg`;
-            await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: 'Img', content: b64 });
+            await window.githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: 'Img', content: b64 });
             newPaths.push(`${CONFIG.mediaPath}${fname}`);
         }
-
-        const obj = {
-            id, timestamp: Date.now(), title: document.getElementById('edit-title').value,
-            status: document.querySelector('input[name="edit-status"]:checked').value,
-            is_pinned: document.getElementById('edit-pinned').checked,
-            content: document.getElementById('edit-content').innerHTML,
-            media: [...state.currentEditingMedia, ...newPaths]
-        };
-
+        const obj = { id, timestamp: Date.now(), title: document.getElementById('edit-title').value, status: document.querySelector('input[name="edit-status"]:checked').value, is_pinned: document.getElementById('edit-pinned').checked, content: document.getElementById('edit-content').innerHTML, media: [...state.currentEditingMedia, ...newPaths] };
         const idx = content.findIndex(x => x.id === id);
         if(idx > -1) content[idx] = obj; else content.unshift(obj);
-        await githubRequest(fPath, 'PUT', { message: 'Post', content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))), sha: fData.sha });
-        
-        addToAuditor('post', id, obj);
+        await window.githubRequest(fPath, 'PUT', { message: 'Post', content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))), sha: fData.sha });
+        window.addToAuditor('post', id, obj);
         document.getElementById('modal-editor').style.display = 'none';
         if(idx > -1) state.feedData[idx] = obj; else state.feedData.unshift(obj);
-        renderFeed();
+        window.renderFeed();
     } catch(err) { alert(err.message); } finally { btn.innerText = "Save"; btn.disabled = false; }
 };
 
@@ -315,19 +304,19 @@ window.editStaff = (id) => {
     document.getElementById('edit-staff-name').value = s.name;
     document.getElementById('edit-staff-designation').value = s.designation;
     document.getElementById('edit-staff-subject').value = s.subject;
-    state.currentEditingStaffPhoto = s.photo; renderStaffPreview();
+    state.currentEditingStaffPhoto = s.photo; window.renderStaffPreview();
     document.getElementById('modal-staff').style.display = 'flex';
 };
 
 window.deleteStaff = async (id) => {
     if(!confirm("Delete?")) return;
     const fPath = `${CONFIG.dataPath}staff.json`;
-    const fData = await githubRequest(fPath);
+    const fData = await window.githubRequest(fPath);
     const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
     const newContent = content.filter(x => x.id !== id);
-    await githubRequest(fPath, 'PUT', { message: 'Del Staff', content: btoa(unescape(encodeURIComponent(JSON.stringify(newContent, null, 2)))), sha: fData.sha });
-    addToAuditor('staff', id, null);
-    state.staffData = state.staffData.filter(x => x.id !== id); renderStaff();
+    await window.githubRequest(fPath, 'PUT', { message: 'Del Staff', content: btoa(unescape(encodeURIComponent(JSON.stringify(newContent, null, 2)))), sha: fData.sha });
+    window.addToAuditor('staff', id, null);
+    state.staffData = state.staffData.filter(x => x.id !== id); window.renderStaff();
 };
 
 window.handleStaffSave = async (e) => {
@@ -335,27 +324,24 @@ window.handleStaffSave = async (e) => {
     try {
         const id = document.getElementById('edit-staff-id').value || `staff_${Date.now()}`;
         const fPath = `${CONFIG.dataPath}staff.json`;
-        let fData; try { fData = await githubRequest(fPath); } catch { fData = { content: btoa("[]"), sha: null }; }
+        let fData; try { fData = await window.githubRequest(fPath); } catch { fData = { content: btoa("[]"), sha: null }; }
         const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
-
         const photoInput = document.getElementById('edit-staff-photo');
         let photo = state.currentEditingStaffPhoto;
         if (photoInput.files.length > 0) {
-            const b64 = await processImage(photoInput.files[0]);
+            const b64 = await window.processImage(photoInput.files[0]);
             const fname = `staff_${id}_${Date.now()}.jpg`;
-            await githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: 'Photo', content: b64 });
+            await window.githubRequest(`${CONFIG.mediaPath}${fname}`, 'PUT', { message: 'Photo', content: b64 });
             photo = `${CONFIG.mediaPath}${fname}`;
         }
-
         const obj = { id, name: document.getElementById('edit-staff-name').value, designation: document.getElementById('edit-staff-designation').value, subject: document.getElementById('edit-staff-subject').value, photo };
         const idx = content.findIndex(x => x.id === id);
         if(idx > -1) content[idx] = obj; else content.push(obj);
-        await githubRequest(fPath, 'PUT', { message: 'Staff', content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))), sha: fData.sha });
-        
-        addToAuditor('staff', id, obj);
+        await window.githubRequest(fPath, 'PUT', { message: 'Staff', content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))), sha: fData.sha });
+        window.addToAuditor('staff', id, obj);
         document.getElementById('modal-staff').style.display = 'none';
         if(idx > -1) state.staffData[idx] = obj; else state.staffData.push(obj);
-        renderStaff();
+        window.renderStaff();
     } catch(err) { alert(err.message); } finally { btn.innerText = "Save"; btn.disabled = false; }
 };
 
@@ -370,11 +356,11 @@ function setupEvents() {
     document.getElementById('tab-feed').onclick = () => { document.getElementById('tab-feed').className = 'nav-btn active'; document.getElementById('tab-people').className = 'nav-btn'; document.getElementById('feed-column').style.display = 'block'; document.getElementById('people-column').style.display = 'none'; };
     document.getElementById('tab-people').onclick = () => { document.getElementById('tab-people').className = 'nav-btn active'; document.getElementById('tab-feed').className = 'nav-btn'; document.getElementById('people-column').style.display = 'block'; document.getElementById('feed-column').style.display = 'none'; };
 
-    document.getElementById('btn-create-post').onclick = () => { document.getElementById('post-editor-form').reset(); document.getElementById('edit-post-id').value = ""; document.getElementById('edit-content').innerHTML = ""; state.currentEditingMedia = []; renderMediaPreview(); document.getElementById('modal-editor').style.display = 'flex'; };
+    document.getElementById('btn-create-post').onclick = () => { document.getElementById('post-editor-form').reset(); document.getElementById('edit-post-id').value = ""; document.getElementById('edit-content').innerHTML = ""; state.currentEditingMedia = []; window.renderMediaPreview(); document.getElementById('modal-editor').style.display = 'flex'; };
     document.getElementById('post-editor-form').onsubmit = window.handlePostSave;
     document.getElementById('btn-editor-cancel').onclick = () => document.getElementById('modal-editor').style.display = 'none';
 
-    document.getElementById('btn-add-staff').onclick = () => { document.getElementById('staff-editor-form').reset(); document.getElementById('edit-staff-id').value = ""; state.currentEditingStaffPhoto = null; renderStaffPreview(); document.getElementById('modal-staff').style.display = 'flex'; };
+    document.getElementById('btn-add-staff').onclick = () => { document.getElementById('staff-editor-form').reset(); document.getElementById('edit-staff-id').value = ""; state.currentEditingStaffPhoto = null; window.renderStaffPreview(); document.getElementById('modal-staff').style.display = 'flex'; };
     document.getElementById('staff-editor-form').onsubmit = window.handleStaffSave;
     document.getElementById('btn-staff-cancel').onclick = () => document.getElementById('modal-staff').style.display = 'none';
 
@@ -382,26 +368,22 @@ function setupEvents() {
     document.getElementById('btn-ticker-cancel').onclick = () => document.getElementById('modal-ticker').style.display = 'none';
     document.getElementById('btn-ticker-save').onclick = async () => {
         const fPath = `data/school_details.json`;
-        const fData = await githubRequest(fPath);
+        const fData = await window.githubRequest(fPath);
         const content = JSON.parse(decodeURIComponent(escape(atob(fData.content))));
         const obj = { message: document.getElementById('input-ticker-text').value, is_active: document.getElementById('input-ticker-active').checked };
         content.alert_ticker = obj;
-        await githubRequest(fPath, 'PUT', { message: 'Ticker', content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))), sha: fData.sha });
-        addToAuditor('ticker', 'ticker_global', obj);
-        state.schoolDetails = content; renderHero();
+        await window.githubRequest(fPath, 'PUT', { message: 'Ticker', content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))), sha: fData.sha });
+        window.addToAuditor('ticker', 'ticker_global', obj);
+        state.schoolDetails = content; window.renderHero();
         document.getElementById('modal-ticker').style.display = 'none';
     };
 }
 
 async function init() {
-    if(state.pat) { 
-        state.isAdmin = true; 
-        document.getElementById('admin-control-panel').style.display = 'block'; 
-        document.getElementById('admin-staff-panel').style.display = 'block'; 
-    }
+    if(state.pat) { state.isAdmin = true; document.getElementById('admin-control-panel').style.display = 'block'; document.getElementById('admin-staff-panel').style.display = 'block'; }
     setupEvents();
-    await refreshAllData();
-    ensureAuditorIsRunning();
+    await window.refreshAllData();
+    window.ensureAuditorIsRunning();
 }
 
 init();
