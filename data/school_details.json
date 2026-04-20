@@ -19,5 +19,9 @@
   "social_links": {
     "facebook": "",
     "youtube": ""
+  },
+  "alert_ticker": {
+    "message": "aaaaaaaaaaaaaaaaaa  hjjjjjjjjjjjjjjjjjjjjjj\ntttttttttttttttttttttttt",
+    "is_active": true
   }
 }
