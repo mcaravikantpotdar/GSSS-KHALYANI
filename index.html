@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>School Portal</title>
+    <title>School Management Portal</title>
     <link rel="stylesheet" href="style.css">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 </head>
@@ -13,7 +13,7 @@
         <div class="hero-content">
             <img id="school-logo" src="" alt="Logo" class="logo" style="display: none;">
             <div class="identity-text">
-                <h1 id="school-name">Loading...</h1>
+                <h1 id="school-name">Portal Loading...</h1>
                 <p id="udise-code" class="udise"></p>
                 <p id="mission-statement" class="mission"></p>
             </div>
@@ -65,7 +65,7 @@
     <footer id="global-footer" class="footer-container">
         <div class="footer-grid">
             <div class="footer-col" id="footer-contact">
-                <h4>Contact Us</h4>
+                <h4>Contact Info</h4>
                 <p id="contact-address"></p><p id="contact-phone"></p><p id="contact-email"></p>
             </div>
             <div class="footer-col admin-access">
@@ -76,8 +76,8 @@
 
     <div id="modal-auth" class="modal-overlay" style="display: none;">
         <div class="modal-content auth-box elevation-2">
-            <h2>Admin Authentication</h2>
-            <input type="password" id="input-pat" placeholder="GitHub PAT">
+            <h2>Authentication</h2>
+            <input type="password" id="input-pat" placeholder="GitHub Token">
             <div class="modal-actions">
                 <button id="btn-auth-cancel" class="btn-secondary">Cancel</button>
                 <button id="btn-auth-submit" class="btn-primary">Login</button>
@@ -87,14 +87,14 @@
 
     <div id="modal-editor" class="modal-overlay" style="display: none;">
         <div class="modal-content editor-box elevation-2">
-            <h2 id="editor-title">Post Editor</h2>
+            <h2 id="editor-title">Edit Post</h2>
             <form id="post-editor-form">
                 <input type="hidden" id="edit-post-id" value="">
                 <div class="form-group"><label>Categories</label><div id="edit-category-container" class="checkbox-grid"></div></div>
                 <div class="form-group status-group">
                     <label><input type="radio" name="edit-status" value="published" checked> Published</label>
                     <label><input type="radio" name="edit-status" value="draft"> Draft</label>
-                    <label class="pin-toggle"><input type="checkbox" id="edit-pinned"> Pin to Top</label>
+                    <label class="pin-toggle"><input type="checkbox" id="edit-pinned"> Pin Post</label>
                 </div>
                 <div class="form-group"><label>Title</label><input type="text" id="edit-title" required></div>
                 <div class="form-group">
@@ -109,10 +109,10 @@
                     <label>Existing Images</label>
                     <div id="edit-preview-container" class="image-edit-preview"></div>
                 </div>
-                <div class="form-group"><label>Upload New Images</label><input type="file" id="edit-media" multiple></div>
+                <div class="form-group"><label>Upload Images</label><input type="file" id="edit-media" multiple></div>
                 <div class="modal-actions">
                     <button type="button" id="btn-editor-cancel" class="btn-secondary">Cancel</button>
-                    <button type="submit" id="btn-editor-save" class="btn-primary">Save & Publish</button>
+                    <button type="submit" id="btn-editor-save" class="btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -120,25 +120,24 @@
 
     <div id="modal-staff" class="modal-overlay" style="display: none;">
         <div class="modal-content editor-box elevation-2">
-            <h2 id="staff-editor-title">Staff Record</h2>
+            <h2 id="staff-editor-title">Staff Member</h2>
             <form id="staff-editor-form">
                 <input type="hidden" id="edit-staff-id" value="">
-                <div class="form-group"><label>Full Name</label><input type="text" id="edit-staff-name" required></div>
+                <div class="form-group"><label>Name</label><input type="text" id="edit-staff-name" required></div>
                 <div class="form-group">
                     <label>Designation</label>
                     <select id="edit-staff-designation" required>
                         <option value="PRINCIPAL">Principal</option>
                         <option value="TEACHER">Teacher</option>
-                        <option value="ADMINISTRATIVE">Administrative</option>
-                        <option value="SUPPORT">Support Staff</option>
+                        <option value="STAFF">Staff Member</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Subject / Department</label><input type="text" id="edit-staff-subject"></div>
-                <div class="form-group"><label>Current Photo</label><div id="staff-preview-container" class="image-edit-preview"></div></div>
+                <div class="form-group"><label>Details</label><input type="text" id="edit-staff-subject"></div>
+                <div class="form-group"><label>Photo</label><div id="staff-preview-container" class="image-edit-preview"></div></div>
                 <div class="form-group"><input type="file" id="edit-staff-photo"></div>
                 <div class="modal-actions">
                     <button type="button" id="btn-staff-cancel" class="btn-secondary">Cancel</button>
-                    <button type="submit" id="btn-staff-save" class="btn-primary">Save Record</button>
+                    <button type="submit" id="btn-staff-save" class="btn-primary">Save Staff</button>
                 </div>
             </form>
         </div>
@@ -147,11 +146,11 @@
     <div id="modal-ticker" class="modal-overlay" style="display: none;">
         <div class="modal-content auth-box elevation-2">
             <h2>📢 Update Alert Ticker</h2>
-            <div class="form-group"><textarea id="input-ticker-text" style="width: 100%; height: 80px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);"></textarea></div>
-            <div class="form-group"><label><input type="checkbox" id="input-ticker-active"> Show ticker to public</label></div>
+            <div class="form-group"><textarea id="input-ticker-text" style="width: 100%; height: 80px;"></textarea></div>
+            <div class="form-group"><label><input type="checkbox" id="input-ticker-active"> Show Ticker</label></div>
             <div class="modal-actions">
                 <button id="btn-ticker-cancel" class="btn-secondary">Cancel</button>
-                <button id="btn-ticker-save" class="btn-primary">Update Ticker</button>
+                <button id="btn-ticker-save" class="btn-primary">Save Ticker</button>
             </div>
         </div>
     </div>
