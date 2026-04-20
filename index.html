@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>School Feed Loading...</title>
+    <title>School Portal</title>
     <link rel="stylesheet" href="style.css">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 </head>
 <body>
 
-    <header id="hero-section" class="hero-container">
+    <header id="hero-section" class="hero-container shadow-bottom">
         <div class="hero-content">
             <img id="school-logo" src="" alt="School Logo" class="logo" style="display: none;">
             <div class="identity-text">
@@ -25,28 +25,37 @@
         <div class="ticker-content"><marquee id="ticker-text"></marquee></div>
     </div>
 
-    <nav id="main-nav" class="navigation-bar">
+    <nav id="main-nav" class="navigation-bar shadow-bottom">
         <div class="nav-tabs">
             <button class="nav-btn active" id="tab-feed">Latest Feed</button>
             <button class="nav-btn" id="tab-people">Our Team</button>
         </div>
         <div class="search-container">
-            <input type="text" id="search-input" placeholder="Search posts...">
+            <input type="text" id="search-input" placeholder="Search...">
         </div>
     </nav>
 
     <main id="content-layout" class="layout-grid">
-        <section id="feed-column" class="feed-container">
-            <div id="admin-control-panel" style="display: none; margin-bottom: 2rem; text-align: center;">
-                <button id="btn-create-post" class="btn-primary" style="display: inline-block; padding: 0.8rem 2rem;">+ Create New Post</button>
+        <section id="feed-column" class="feed-container tab-content active">
+            <div id="admin-control-panel" class="admin-panel" style="display: none;">
+                <button id="btn-create-post" class="btn-primary elevation-1">+ Create New Post</button>
             </div>
-            
             <div id="feed-loader" class="loader">Loading updates...</div>
+        </section>
+
+        <section id="people-column" class="people-container tab-content" style="display: none;">
+            <div id="admin-staff-panel" class="admin-panel" style="display: none;">
+                <button id="btn-add-staff" class="btn-primary elevation-1">+ Add Staff Member</button>
+            </div>
+            <div id="staff-loader" class="loader">Loading staff directory...</div>
+            <div id="staff-grid" class="staff-grid"></div>
         </section>
         
         <aside id="sidebar-column" class="sidebar-container">
-            <div class="sidebar-widget"><h3>Quick Links</h3><ul id="quick-links-list"></ul></div>
-            <div class="sidebar-widget"><h3>Archives</h3><ul id="archive-years-list"></ul></div>
+            <div class="sidebar-widget elevation-1">
+                <h3>Quick Links</h3>
+                <ul id="quick-links-list"></ul>
+            </div>
         </aside>
     </main>
 
@@ -63,25 +72,25 @@
     </footer>
 
     <div id="modal-auth" class="modal-overlay" style="display: none;">
-        <div class="modal-content auth-box">
-            <h2>Admin Login</h2>
-            <input type="password" id="input-pat" placeholder="GitHub PAT (ghp_...)">
+        <div class="modal-content auth-box elevation-2">
+            <h2>Admin Authentication</h2>
+            <p class="modal-subtitle">Enter your secure GitHub Personal Access Token.</p>
+            <input type="password" id="input-pat" placeholder="ghp_... or github_pat_...">
             <div class="modal-actions">
                 <button id="btn-auth-cancel" class="btn-secondary">Cancel</button>
                 <button id="btn-auth-submit" class="btn-primary">Login</button>
             </div>
-            <p id="auth-error-msg" class="error-text" style="display: none;"></p>
         </div>
     </div>
 
     <div id="modal-editor" class="modal-overlay" style="display: none;">
-        <div class="modal-content editor-box">
+        <div class="modal-content editor-box elevation-2">
             <h2 id="editor-title">Post Editor</h2>
             <form id="post-editor-form">
                 <input type="hidden" id="edit-post-id" value="">
                 
                 <div class="form-group">
-                    <label>Categories (Select one or more)</label>
+                    <label>Categories</label>
                     <div id="edit-category-container" class="checkbox-grid"></div>
                 </div>
                 <div class="form-group status-group">
@@ -90,11 +99,11 @@
                     <label class="pin-toggle"><input type="checkbox" id="edit-pinned"> Pin to Top</label>
                 </div>
                 <div class="form-group">
-                    <label for="edit-title">Post Title</label>
-                    <input type="text" id="edit-title" required placeholder="Title of your post...">
+                    <label for="edit-title">Title</label>
+                    <input type="text" id="edit-title" required placeholder="Enter post title...">
                 </div>
                 <div class="form-group">
-                    <label>Post Content</label>
+                    <label>Content</label>
                     <div class="editor-toolbar">
                         <button type="button" onclick="execCommand('bold')"><b>B</b></button>
                         <button type="button" onclick="execCommand('italic')"><i>I</i></button>
@@ -118,6 +127,54 @@
                 <div class="modal-actions">
                     <button type="button" id="btn-editor-cancel" class="btn-secondary">Cancel</button>
                     <button type="submit" id="btn-editor-save" class="btn-primary">Save & Publish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-staff" class="modal-overlay" style="display: none;">
+        <div class="modal-content editor-box elevation-2">
+            <h2 id="staff-editor-title">Staff Editor</h2>
+            <form id="staff-editor-form">
+                <input type="hidden" id="edit-staff-id" value="">
+                
+                <div class="form-group">
+                    <label for="edit-staff-name">Full Name</label>
+                    <input type="text" id="edit-staff-name" required placeholder="e.g., Sh. Ravikant Potdar">
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-staff-designation">Designation</label>
+                    <select id="edit-staff-designation" class="form-select" required>
+                        <option value="">-- Select Designation --</option>
+                        <option value="PRINCIPAL">PRINCIPAL</option>
+                        <option value="LECTURER (SCHOOL NEW)">LECTURER (SCHOOL NEW)</option>
+                        <option value="TGT-ARTS">TGT-ARTS</option>
+                        <option value="TGT-MEDICAL">TGT-MEDICAL</option>
+                        <option value="TGT-NON-MEDICAL">TGT-NON-MEDICAL</option>
+                        <option value="CLERK">CLERK</option>
+                        <option value="PEON">PEON</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-staff-subject">Subject / Department</label>
+                    <input type="text" id="edit-staff-subject" placeholder="e.g., Computer Science">
+                </div>
+
+                <div class="form-group">
+                    <label>Current Photo (Click X to remove)</label>
+                    <div id="staff-preview-container" class="image-edit-preview"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Upload New Photo (Overrides current)</label>
+                    <input type="file" id="edit-staff-photo" accept="image/jpeg, image/png">
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" id="btn-staff-cancel" class="btn-secondary">Cancel</button>
+                    <button type="submit" id="btn-staff-save" class="btn-primary">Save Record</button>
                 </div>
             </form>
         </div>
